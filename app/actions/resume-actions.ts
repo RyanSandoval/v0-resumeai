@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { prisma } from "@/lib/prisma"
+import prisma from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { OptimizationResult } from "@/components/resume-optimizer"
 

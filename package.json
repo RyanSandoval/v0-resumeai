@@ -66,8 +66,8 @@
     "next-auth": "latest",
     "docx": "latest",
     "jspdf": "latest",
-    "@auth/prisma-adapter": "latest",
-    "react-icons": "latest"
+    "react-icons": "latest",
+    "@auth/prisma-adapter": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
