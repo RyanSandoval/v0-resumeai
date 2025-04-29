@@ -4,7 +4,7 @@ import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { FaGoogle, FaApple, FaLinkedin } from "react-icons/fa"
+import { FaGoogle } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
@@ -12,9 +12,7 @@ import Link from "next/link"
 export default function SignIn() {
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({
     google: false,
-    apple: false,
     twitter: false,
-    linkedin: false,
   })
 
   const handleSignIn = async (provider: string) => {
@@ -47,15 +45,6 @@ export default function SignIn() {
           <Button
             variant="outline"
             className="w-full flex items-center justify-center"
-            onClick={() => handleSignIn("apple")}
-            disabled={isLoading.apple}
-          >
-            {isLoading.apple ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FaApple className="mr-2 h-4 w-4" />}
-            Continue with Apple
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full flex items-center justify-center"
             onClick={() => handleSignIn("twitter")}
             disabled={isLoading.twitter}
           >
@@ -65,19 +54,6 @@ export default function SignIn() {
               <FaXTwitter className="mr-2 h-4 w-4" />
             )}
             Continue with X
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full flex items-center justify-center"
-            onClick={() => handleSignIn("linkedin")}
-            disabled={isLoading.linkedin}
-          >
-            {isLoading.linkedin ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <FaLinkedin className="mr-2 h-4 w-4 text-blue-600" />
-            )}
-            Continue with LinkedIn
           </Button>
         </CardContent>
         <CardFooter className="flex justify-center">

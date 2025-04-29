@@ -94,38 +94,13 @@ export async function extractTextFromFile(file: File): Promise<string> {
  */
 async function extractTextFromPDF(file: File): Promise<string> {
   try {
-    // First attempt: Use PDF.js if available
-    try {
-      const pdfjs = await import("pdfjs-dist")
-      const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.entry")
-      pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
-
-      const arrayBuffer = await file.arrayBuffer()
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise
-      let fullText = ""
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i)
-        const textContent = await page.getTextContent()
-        const pageText = textContent.items.map((item: any) => item.str).join(" ")
-        fullText += pageText + "\n"
-      }
-
-      if (fullText.trim().length > 100) {
-        return fullText
-      }
-      // If text is too short, try alternative method
-    } catch (error) {
-      console.warn("PDF.js extraction failed, trying alternative method:", error)
-    }
-
-    // Second attempt: Try to read as text directly
+    // First attempt: Try to read as text directly
     const text = await file.text()
     if (text && !text.includes("%PDF-") && text.length > 100) {
       return text
     }
 
-    // Third attempt: Use FileReader with readAsText
+    // Second attempt: Use FileReader with readAsText
     return new Promise((resolve) => {
       const reader = new FileReader()
       reader.onload = () => {
@@ -152,27 +127,13 @@ async function extractTextFromPDF(file: File): Promise<string> {
  */
 async function extractTextFromDOCX(file: File): Promise<string> {
   try {
-    // First attempt: Use mammoth.js if available
-    try {
-      const mammoth = await import("mammoth")
-      const arrayBuffer = await file.arrayBuffer()
-      const result = await mammoth.extractRawText({ arrayBuffer })
-
-      if (result.value && result.value.length > 100) {
-        return result.value
-      }
-      // If text is too short, try alternative method
-    } catch (error) {
-      console.warn("Mammoth.js extraction failed, trying alternative method:", error)
-    }
-
-    // Second attempt: Try to read as text directly
+    // First attempt: Try to read as text directly
     const text = await file.text()
     if (text && !text.includes("PK") && text.length > 100) {
       return text
     }
 
-    // Third attempt: Use FileReader with readAsText
+    // Second attempt: Use FileReader with readAsText
     return new Promise((resolve) => {
       const reader = new FileReader()
       reader.onload = () => {

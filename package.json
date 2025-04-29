@@ -62,14 +62,12 @@
     "nodemailer": "latest",
     "prisma": "latest",
     "@prisma/client": "latest",
-    "docx": "latest",
-    "jspdf": "latest",
-    "pdfjs-dist": "latest",
-    "mammoth": "latest",
     "cheerio": "latest",
     "next-auth": "latest",
-    "react-icons": "latest",
-    "@auth/prisma-adapter": "latest"
+    "docx": "latest",
+    "jspdf": "latest",
+    "@auth/prisma-adapter": "latest",
+    "react-icons": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
