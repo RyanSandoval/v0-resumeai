@@ -1,19 +1,27 @@
 "use server"
 
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import prisma from "@/lib/db"
+import { getPrismaClient } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { OptimizationResult } from "@/components/resume-optimizer"
 
+// Helper function to get the session
+async function getSession() {
+  // Import auth options dynamically to avoid build-time issues
+  const { authOptions } = await import("@/app/api/auth/[...nextauth]/route")
+  return getServerSession(authOptions)
+}
+
 export async function saveResume(result: OptimizationResult, title = "Untitled Resume", jobUrl?: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
 
   if (!session?.user?.id) {
     return { success: false, error: "You must be signed in to save a resume" }
   }
 
   try {
+    const prisma = await getPrismaClient()
+
     const resume = await prisma.resume.create({
       data: {
         userId: session.user.id,
@@ -36,13 +44,15 @@ export async function saveResume(result: OptimizationResult, title = "Untitled R
 }
 
 export async function getUserResumes() {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
 
   if (!session?.user?.id) {
     return { success: false, error: "You must be signed in to view your resumes" }
   }
 
   try {
+    const prisma = await getPrismaClient()
+
     const resumes = await prisma.resume.findMany({
       where: {
         userId: session.user.id,
@@ -60,13 +70,15 @@ export async function getUserResumes() {
 }
 
 export async function getResumeById(id: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
 
   if (!session?.user?.id) {
     return { success: false, error: "You must be signed in to view this resume" }
   }
 
   try {
+    const prisma = await getPrismaClient()
+
     const resume = await prisma.resume.findUnique({
       where: {
         id,
@@ -95,13 +107,15 @@ export async function getResumeById(id: string) {
 }
 
 export async function deleteResume(id: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
 
   if (!session?.user?.id) {
     return { success: false, error: "You must be signed in to delete a resume" }
   }
 
   try {
+    const prisma = await getPrismaClient()
+
     await prisma.resume.delete({
       where: {
         id,
@@ -118,13 +132,15 @@ export async function deleteResume(id: string) {
 }
 
 export async function updateResumeTitle(id: string, title: string) {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
 
   if (!session?.user?.id) {
     return { success: false, error: "You must be signed in to update a resume" }
   }
 
   try {
+    const prisma = await getPrismaClient()
+
     await prisma.resume.update({
       where: {
         id,

@@ -1,7 +1,4 @@
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { getResumeById } from "@/app/actions/resume-actions"
 import { ResumePreview } from "@/components/resume-preview"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
@@ -14,12 +11,18 @@ interface ResumePageProps {
 }
 
 export default async function ResumePage({ params }: ResumePageProps) {
+  // Import and use getServerSession dynamically
+  const { getServerSession } = await import("next-auth/next")
+  const { authOptions } = await import("@/app/api/auth/[...nextauth]/route")
+
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     redirect("/auth/signin")
   }
 
+  // Import and use getResumeById dynamically
+  const { getResumeById } = await import("@/app/actions/resume-actions")
   const { success, resume, error } = await getResumeById(params.id)
 
   if (!success) {

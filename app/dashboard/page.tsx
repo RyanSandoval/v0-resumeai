@@ -1,16 +1,19 @@
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { getUserResumes } from "@/app/actions/resume-actions"
 import { SavedResumesList } from "@/components/dashboard/saved-resumes-list"
 
 export default async function DashboardPage() {
+  // Import and use getServerSession dynamically
+  const { getServerSession } = await import("next-auth/next")
+  const { authOptions } = await import("@/app/api/auth/[...nextauth]/route")
+
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     redirect("/auth/signin")
   }
 
+  // Import and use getUserResumes dynamically
+  const { getUserResumes } = await import("@/app/actions/resume-actions")
   const { success, resumes, error } = await getUserResumes()
 
   return (
