@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react"
 import { analyzeResumeWithGrok, type ResumeAnalysisResult } from "@/app/actions/analyze-resume"
@@ -146,14 +146,35 @@ export function ResumeOptimizationPanel({
               </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-                <TabsTrigger value="keywords">Keywords</TabsTrigger>
-                <TabsTrigger value="strengths">Strengths</TabsTrigger>
-              </TabsList>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                <Button
+                  onClick={() => setActiveTab("recommendations")}
+                  variant={activeTab === "recommendations" ? "default" : "outline"}
+                  className="flex-1 py-2 px-4 h-auto justify-center"
+                  size="sm"
+                >
+                  Recommendations
+                </Button>
+                <Button
+                  onClick={() => setActiveTab("keywords")}
+                  variant={activeTab === "keywords" ? "default" : "outline"}
+                  className="flex-1 py-2 px-4 h-auto justify-center"
+                  size="sm"
+                >
+                  Keywords
+                </Button>
+                <Button
+                  onClick={() => setActiveTab("strengths")}
+                  variant={activeTab === "strengths" ? "default" : "outline"}
+                  className="flex-1 py-2 px-4 h-auto justify-center"
+                  size="sm"
+                >
+                  Strengths
+                </Button>
+              </div>
 
-              <TabsContent value="recommendations" className="space-y-3 pt-3">
+              <TabsContent value="recommendations" className="space-y-4 pt-2">
                 {analysis.recommendations.length > 0 ? (
                   analysis.recommendations.map((rec, index) => (
                     <div key={index} className="border rounded-md p-3 space-y-2">
@@ -186,7 +207,7 @@ export function ResumeOptimizationPanel({
                 )}
               </TabsContent>
 
-              <TabsContent value="keywords" className="pt-3">
+              <TabsContent value="keywords" className="pt-2">
                 <div className="space-y-3">
                   <div>
                     <h4 className="text-sm font-medium mb-2">Suggested Keywords</h4>
@@ -226,7 +247,7 @@ export function ResumeOptimizationPanel({
                 </div>
               </TabsContent>
 
-              <TabsContent value="strengths" className="pt-3">
+              <TabsContent value="strengths" className="pt-2">
                 <h4 className="text-sm font-medium mb-2">Resume Strengths</h4>
                 {analysis.strengths.length > 0 ? (
                   <ul className="space-y-1">

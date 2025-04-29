@@ -1,20 +1,48 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type React from "react"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { AuthButton } from "@/components/auth/auth-button"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { SessionProvider } from "@/components/auth/session-provider"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: "AI Resume Optimizer",
+  description:
+    "Automatically tailor your resume to match job descriptions and stand out to recruiters and ATS systems.",
+    generator: 'v0.dev'
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const session = await getServerSession(authOptions)
+
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>
+        <SessionProvider session={session}>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+              <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+                <a href="/" className="font-bold text-xl text-slate-900 dark:text-white">
+                  AI Resume Optimizer
+                </a>
+                <AuthButton />
+              </div>
+            </header>
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </SessionProvider>
+      </body>
     </html>
   )
 }

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Eye, Edit2 } from "lucide-react"
 import { calculateMatchScore } from "@/lib/resume-optimizer"
 import { ResumeOptimizationPanel } from "@/components/resume-optimization-panel"
 import { useToast } from "@/hooks/use-toast"
@@ -576,10 +577,25 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Edit Your Resume</h3>
-          <Button variant="outline" size="sm" onClick={toggleEditing}>
-            {isEditing ? "Preview" : "Edit"}
+        <div className="flex items-center justify-between mb-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-md">
+          <h2 className="text-xl font-semibold">Edit Your Resume</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleEditing}
+            className="flex items-center gap-2 px-6 py-2.5 h-10 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+          >
+            {isEditing ? (
+              <>
+                <Eye className="h-4 w-4 mr-1" />
+                <span>Preview</span>
+              </>
+            ) : (
+              <>
+                <Edit2 className="h-4 w-4 mr-1" />
+                <span>Edit</span>
+              </>
+            )}
           </Button>
         </div>
 
