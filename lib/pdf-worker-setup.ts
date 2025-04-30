@@ -6,8 +6,16 @@
 import * as pdfjs from "pdfjs-dist"
 
 // Initialize PDF.js worker
-// In a production environment, we would set this to a CDN URL or local path
-const pdfjsWorker = require("pdfjs-dist/build/pdf.worker.entry")
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
+// Use dynamic import for the worker to avoid build issues
+const setPdfWorker = async () => {
+  if (typeof window !== "undefined") {
+    // Only run in browser environment
+    const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.mjs")
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
+  }
+}
+
+// Initialize the worker
+setPdfWorker().catch((err) => console.error("Error setting up PDF.js worker:", err))
 
 export default pdfjs

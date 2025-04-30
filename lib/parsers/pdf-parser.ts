@@ -4,11 +4,13 @@
 
 import * as pdfjs from "pdfjs-dist"
 import { getSampleResume } from "../file-utils"
+import { dispatchParsingMethod } from "./parser-events"
 
-// Initialize PDF.js worker
-// In a production environment, we would set this to a CDN URL or local path
-const pdfjsWorker = require("pdfjs-dist/build/pdf.worker.entry")
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
+// Initialize PDF.js worker in browser environment only
+if (typeof window !== "undefined") {
+  const workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url)
+  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc.toString()
+}
 
 /**
  * Extract text from PDF file using PDF.js
@@ -56,6 +58,7 @@ export async function extractTextFromPDF(file: File): Promise<string> {
 
     if (fullText.trim().length > 100) {
       console.log("Successfully extracted text using PDF.js")
+      dispatchParsingMethod("PDF.js")
       return fullText
     } else {
       console.log("PDF.js extraction returned insufficient text, trying fallback method")
@@ -101,36 +104,6 @@ async function extractTextFromPDFFallback(file: File): Promise<string> {
 }
 
 /**
- * Extract text from PDF binary data
- */
-async function extractTextFromPDFBinary(buffer: ArrayBuffer): Promise<string> {
-  const uint8Array = new Uint8Array(buffer)
-  let result = ""
-  let currentText = ""
-
-  // Look for text chunks in the binary data
-  for (let i = 0; i < uint8Array.length; i++) {
-    const byte = uint8Array[i]
-
-    // If it's a printable ASCII character or newline
-    if ((byte >= 32 && byte <= 126) || byte === 10 || byte === 13) {
-      currentText += String.fromCharCode(byte)
-    } else {
-      // If we have accumulated some text
-      if (currentText.length > 4) {
-        result += currentText + " "
-      }
-      currentText = ""
-    }
-
-    // Limit processing for large files
-    if (i > 1000000) break
-  }
-
-  return result
-}
-
-/**
  * Clean up extracted PDF text
  */
 function cleanupPDFText(text: string): string {
@@ -166,6 +139,36 @@ function cleanupPDFText(text: string): string {
   }
 
   return cleaned.trim()
+}
+
+/**
+ * Extract text from PDF binary data
+ */
+async function extractTextFromPDFBinary(buffer: ArrayBuffer): Promise<string> {
+  const uint8Array = new Uint8Array(buffer)
+  let result = ""
+  let currentText = ""
+
+  // Look for text chunks in the binary data
+  for (let i = 0; i < uint8Array.length; i++) {
+    const byte = uint8Array[i]
+
+    // If it's a printable ASCII character or newline
+    if ((byte >= 32 && byte <= 126) || byte === 10 || byte === 13) {
+      currentText += String.fromCharCode(byte)
+    } else {
+      // If we have accumulated some text
+      if (currentText.length > 4) {
+        result += currentText + " "
+      }
+      currentText = ""
+    }
+
+    // Limit processing for large files
+    if (i > 1000000) break
+  }
+
+  return result
 }
 
 /**
