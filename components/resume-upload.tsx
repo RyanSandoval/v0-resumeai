@@ -15,7 +15,7 @@ import type { ResumeFile } from "@/components/resume-optimizer"
 import { generatePDFDiagnostics } from "@/lib/diagnostics/pdf-diagnostics"
 
 interface ResumeUploadProps {
-  onFileSelected: (file: ResumeFile) => void
+  onFileSelected: (file: ResumeFile | null) => void // FIX: Allow null to reset state
   selectedFile: ResumeFile | null
 }
 
@@ -132,14 +132,16 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
   }
 
   const handleRemoveFile = () => {
-    onFileSelected({
-      file: new File([""], "sample-resume.txt", { type: "text/plain" }),
-      text: "",
-      type: "txt",
-    })
+    // FIX: Set to null instead of using sample resume
+    onFileSelected(null)
+
+    // Reset the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
+
+    // Clear any errors
+    setError(null)
   }
 
   const handleUseSample = () => {

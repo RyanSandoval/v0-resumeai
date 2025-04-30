@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import { ResumeUpload } from "@/components/resume-upload"
-import { PDFProcessor } from "@/components/pdf-processor"
 import type { ResumeFile } from "@/components/resume-optimizer"
+import { isValidResumeContent } from "@/lib/file-utils"
+import { useToast } from "@/hooks/use-toast"
 
 interface ClientFileProcessorProps {
   onFileSelected: (file: ResumeFile) => void
@@ -11,64 +12,39 @@ interface ClientFileProcessorProps {
 }
 
 export function ClientFileProcessor({ onFileSelected, selectedFile }: ClientFileProcessorProps) {
-  const [isPDFProcessing, setIsPDFProcessing] = useState(false)
-  const [pdfFile, setPDFFile] = useState<File | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const { toast } = useToast()
 
-  // Handle file selection from ResumeUpload
-  const handleFileSelected = (file: ResumeFile) => {
-    // If it's a PDF file, we need special handling
-    if (file.type === "pdf") {
-      setIsPDFProcessing(true)
-      setPDFFile(file.file)
-
-      // Pass a placeholder to the parent while we process the PDF
-      onFileSelected({
-        ...file,
-        text: "", // Will be filled in by PDFProcessor
-        processing: true,
-      })
-    } else {
-      // For non-PDF files, just pass through
-      onFileSelected(file)
+  const handleFileSelected = (file: ResumeFile | null) => {
+    // FIX: Handle null case to reset the state
+    if (!file) {
+      setIsProcessing(false)
+      return
     }
+
+    setIsProcessing(true)
+
+    // If the file is a PDF and is still being processed, we'll wait
+    if (file.processing) {
+      return
+    }
+
+    // Validate the content
+    const fileType = file.file.name.split(".").pop()?.toLowerCase()
+    if (!isValidResumeContent(file.text, fileType)) {
+      toast({
+        title: "Invalid resume content",
+        description: "The uploaded file doesn't appear to be a valid resume. Please try another file.",
+        variant: "destructive",
+      })
+      setIsProcessing(false)
+      return
+    }
+
+    // Pass the file to the parent component
+    onFileSelected(file)
+    setIsProcessing(false)
   }
 
-  // Handle text extraction from PDFProcessor
-  const handlePDFTextExtracted = (text: string) => {
-    if (pdfFile) {
-      onFileSelected({
-        file: pdfFile,
-        text,
-        type: "pdf",
-        processing: false,
-      })
-    }
-    setIsPDFProcessing(false)
-  }
-
-  // Handle PDF processing errors
-  const handlePDFError = (error: Error) => {
-    console.error("PDF processing error:", error)
-    setIsPDFProcessing(false)
-
-    // If we have a file, pass it with the error
-    if (pdfFile) {
-      onFileSelected({
-        file: pdfFile,
-        text: `Error processing PDF: ${error.message}. Please try a different file or format.`,
-        type: "pdf",
-        processing: false,
-      })
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <ResumeUpload onFileSelected={handleFileSelected} selectedFile={selectedFile} />
-
-      {isPDFProcessing && pdfFile && (
-        <PDFProcessor file={pdfFile} onTextExtracted={handlePDFTextExtracted} onError={handlePDFError} />
-      )}
-    </div>
-  )
+  return <ResumeUpload onFileSelected={handleFileSelected} selectedFile={selectedFile} />
 }

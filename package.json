@@ -66,12 +66,12 @@
     "@prisma/client": "latest",
     "child_process": "latest",
     "@neondatabase/serverless": "latest",
-    "uuid": "latest",
     "pdfjs-dist": "latest",
     "mammoth": "latest",
     "jszip": "latest",
     "jspdf": "latest",
-    "docx": "latest"
+    "docx": "latest",
+    "uuid": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

@@ -62,6 +62,15 @@ export function ResumeOptimizer() {
   const [optimizationError, setOptimizationError] = useState<string | null>(null)
   const { toast } = useToast()
 
+  // FIX: Handle file selection with null state
+  const handleFileSelected = (file: ResumeFile | null) => {
+    setResumeFile(file)
+    // Reset optimization if file is removed
+    if (!file && result) {
+      setResult(null)
+    }
+  }
+
   async function handleOptimize() {
     if (!resumeFile) {
       toast({
@@ -204,7 +213,7 @@ export function ResumeOptimizer() {
         <Card className="shadow-lg border-slate-200 dark:border-slate-700">
           <CardContent className="p-6">
             <div className="space-y-8">
-              <ClientFileProcessor onFileSelected={setResumeFile} selectedFile={resumeFile} />
+              <ClientFileProcessor onFileSelected={handleFileSelected} selectedFile={resumeFile} />
 
               {optimizationError && (
                 <Alert variant="destructive">
