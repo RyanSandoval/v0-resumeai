@@ -1,7 +1,7 @@
 "use server"
 
 import { getServerSession } from "next-auth/next"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import type { OptimizationResult } from "@/components/resume-optimizer"
 

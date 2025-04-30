@@ -60,14 +60,15 @@
     "zod": "^3.24.1",
     "@auth/core": "latest",
     "nodemailer": "latest",
-    "@prisma/client": "latest",
     "prisma": "latest",
+    "@prisma/client": "latest",
     "cheerio": "latest",
     "next-auth": "latest",
     "docx": "latest",
     "jspdf": "latest",
     "react-icons": "latest",
-    "@auth/prisma-adapter": "latest"
+    "@auth/prisma-adapter": "latest",
+    "child_process": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
