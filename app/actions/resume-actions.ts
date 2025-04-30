@@ -1,7 +1,7 @@
 "use server"
 
 import { getServerSession } from "next-auth/next"
-import { getPrismaClient } from "@/lib/db"
+import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import type { OptimizationResult } from "@/components/resume-optimizer"
 
@@ -20,8 +20,6 @@ export async function saveResume(result: OptimizationResult, title = "Untitled R
   }
 
   try {
-    const prisma = await getPrismaClient()
-
     const resume = await prisma.resume.create({
       data: {
         userId: session.user.id,
@@ -51,8 +49,6 @@ export async function getUserResumes() {
   }
 
   try {
-    const prisma = await getPrismaClient()
-
     const resumes = await prisma.resume.findMany({
       where: {
         userId: session.user.id,
@@ -77,8 +73,6 @@ export async function getResumeById(id: string) {
   }
 
   try {
-    const prisma = await getPrismaClient()
-
     const resume = await prisma.resume.findUnique({
       where: {
         id,
@@ -114,8 +108,6 @@ export async function deleteResume(id: string) {
   }
 
   try {
-    const prisma = await getPrismaClient()
-
     await prisma.resume.delete({
       where: {
         id,
@@ -139,8 +131,6 @@ export async function updateResumeTitle(id: string, title: string) {
   }
 
   try {
-    const prisma = await getPrismaClient()
-
     await prisma.resume.update({
       where: {
         id,
