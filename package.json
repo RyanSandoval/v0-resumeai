@@ -63,12 +63,12 @@
     "prisma": "latest",
     "cheerio": "latest",
     "next-auth": "latest",
-    "docx": "latest",
-    "jspdf": "latest",
     "@prisma/client": "latest",
     "child_process": "latest",
     "@neondatabase/serverless": "latest",
-    "uuid": "latest"
+    "uuid": "latest",
+    "docx": "latest",
+    "jspdf": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

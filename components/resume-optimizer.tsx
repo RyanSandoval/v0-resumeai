@@ -59,11 +59,26 @@ export function ResumeOptimizer() {
   const [result, setResult] = useState<OptimizationResult | null>(null)
   const { toast } = useToast()
 
-  const handleOptimize = async () => {
+  async function handleOptimize() {
     if (!resumeFile) {
       toast({
         title: "Resume required",
         description: "Please upload your resume first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate the resume text
+    if (!validateResumeText(resumeFile.text)) {
+      return
+    }
+
+    if (resumeFile.text.length < 50) {
+      toast({
+        title: "Resume text too short",
+        description:
+          "The extracted text from your resume is too short. Please try uploading a different file or format.",
         variant: "destructive",
       })
       return
@@ -127,6 +142,7 @@ export function ResumeOptimizer() {
         })
       }
     } catch (error) {
+      setProgress(0)
       toast({
         title: "Optimization failed",
         description: error instanceof Error ? error.message : "An unknown error occurred",
@@ -135,6 +151,33 @@ export function ResumeOptimizer() {
     } finally {
       setIsOptimizing(false)
     }
+  }
+
+  // Add this function after the handleOptimize function
+  const validateResumeText = (text: string): boolean => {
+    // Check if text is too short
+    if (!text || text.length < 100) {
+      toast({
+        title: "Resume text too short",
+        description:
+          "The extracted text from your resume is too short. Please try uploading a different file or format.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    // Check if text contains only special characters or numbers
+    const alphaContent = text.replace(/[^a-zA-Z]/g, "")
+    if (alphaContent.length < 50) {
+      toast({
+        title: "Invalid resume content",
+        description: "The resume doesn't appear to contain enough text content. Please check the file and try again.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    return true
   }
 
   const resetForm = () => {
