@@ -12,7 +12,8 @@ import { ResumePreview } from "@/components/resume-preview"
 import { Progress } from "@/components/ui/progress"
 import { optimizeResume } from "@/lib/resume-optimizer"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export type ResumeFile = {
   file: File
@@ -57,6 +58,7 @@ export function ResumeOptimizer() {
   const [isOptimizing, setIsOptimizing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<OptimizationResult | null>(null)
+  const [optimizationError, setOptimizationError] = useState<string | null>(null)
   const { toast } = useToast()
 
   async function handleOptimize() {
@@ -71,16 +73,6 @@ export function ResumeOptimizer() {
 
     // Validate the resume text
     if (!validateResumeText(resumeFile.text)) {
-      return
-    }
-
-    if (resumeFile.text.length < 50) {
-      toast({
-        title: "Resume text too short",
-        description:
-          "The extracted text from your resume is too short. Please try uploading a different file or format.",
-        variant: "destructive",
-      })
       return
     }
 
@@ -104,6 +96,7 @@ export function ResumeOptimizer() {
 
     setIsOptimizing(true)
     setProgress(0)
+    setOptimizationError(null)
 
     try {
       // Show progress updates while waiting for AI
@@ -143,9 +136,11 @@ export function ResumeOptimizer() {
       }
     } catch (error) {
       setProgress(0)
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
+      setOptimizationError(errorMessage)
       toast({
         title: "Optimization failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -186,6 +181,7 @@ export function ResumeOptimizer() {
     setKeywords([])
     setResult(null)
     setProgress(0)
+    setOptimizationError(null)
   }
 
   const handleResultUpdate = (updatedResult: OptimizationResult) => {
@@ -199,6 +195,14 @@ export function ResumeOptimizer() {
           <CardContent className="p-6">
             <div className="space-y-8">
               <ResumeUpload onFileSelected={setResumeFile} selectedFile={resumeFile} />
+
+              {optimizationError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Optimization Error</AlertTitle>
+                  <AlertDescription>{optimizationError}</AlertDescription>
+                </Alert>
+              )}
 
               <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as any)}>
                 <TabsList className="grid w-full grid-cols-2">

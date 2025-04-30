@@ -6,6 +6,7 @@
 
 import { Document, Packer, Paragraph, TextRun } from "docx"
 import { jsPDF } from "jspdf"
+import { extractTextFromDOCX, isValidResumeContent } from "./docx-utils"
 
 // Sample resume text for fallback
 const SAMPLE_RESUME = `JOHN DOE
@@ -83,7 +84,16 @@ export async function extractTextFromFile(file: File): Promise<string> {
     if (fileType === "pdf") {
       return await extractTextFromPDF(file)
     } else if (fileType === "docx") {
-      return await extractTextFromDOCX(file)
+      // Use our specialized DOCX extraction
+      const text = await extractTextFromDOCX(file)
+
+      // Validate the extracted text
+      if (isValidResumeContent(text)) {
+        return text
+      } else {
+        console.log("Extracted DOCX content doesn't look like a resume, using sample")
+        return SAMPLE_RESUME
+      }
     } else if (fileType === "txt") {
       return await extractTextFromTXT(file)
     } else {
@@ -178,87 +188,6 @@ async function extractTextFromPDFFallback(file: File): Promise<string> {
     })
   } catch (error) {
     console.error("All PDF extraction methods failed:", error)
-    return SAMPLE_RESUME
-  }
-}
-
-/**
- * Extract text from DOCX using multiple approaches
- */
-async function extractTextFromDOCX(file: File): Promise<string> {
-  try {
-    console.log("Attempting to extract text from DOCX")
-
-    // First attempt: Try to read as text directly
-    const text = await file.text()
-
-    // Check if we got binary DOCX content
-    if (text.includes("PK")) {
-      console.log("File appears to be binary DOCX. Using fallback extraction.")
-      return extractTextFromDOCXFallback(file)
-    }
-
-    if (text && text.length > 100) {
-      console.log("Successfully extracted text from DOCX using direct text reading")
-      return text
-    }
-
-    // If direct reading failed, try fallback
-    return extractTextFromDOCXFallback(file)
-  } catch (error) {
-    console.error("Error in primary DOCX extraction method:", error)
-    return extractTextFromDOCXFallback(file)
-  }
-}
-
-/**
- * Fallback method for DOCX text extraction
- */
-async function extractTextFromDOCXFallback(file: File): Promise<string> {
-  try {
-    console.log("Using DOCX fallback extraction method")
-
-    // Use FileReader with readAsArrayBuffer
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-
-      reader.onload = () => {
-        try {
-          // For a real implementation, we would use mammoth.js here
-          // Since we can't use external libraries in this environment,
-          // we'll use a simplified approach
-
-          // Check if we can extract any text from the file
-          const fileReader = new FileReader()
-          fileReader.onload = () => {
-            const text = fileReader.result as string
-            if (text && text.length > 100 && !text.includes("PK")) {
-              resolve(text)
-            } else {
-              console.log("Fallback extraction failed, using sample resume")
-              resolve(SAMPLE_RESUME)
-            }
-          }
-          fileReader.onerror = () => {
-            console.error("FileReader error in fallback")
-            resolve(SAMPLE_RESUME)
-          }
-          fileReader.readAsText(file)
-        } catch (e) {
-          console.error("Error in DOCX fallback processing:", e)
-          resolve(SAMPLE_RESUME)
-        }
-      }
-
-      reader.onerror = () => {
-        console.error("FileReader error")
-        resolve(SAMPLE_RESUME)
-      }
-
-      reader.readAsArrayBuffer(file)
-    })
-  } catch (error) {
-    console.error("All DOCX extraction methods failed:", error)
     return SAMPLE_RESUME
   }
 }

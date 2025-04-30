@@ -3,12 +3,12 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { Upload, FileText, X, AlertCircle, FileWarning, Loader2 } from "lucide-react"
+import { Upload, FileText, X, AlertCircle, FileWarning, Loader2, FileType } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { extractTextFromFile, validateResumeFile } from "@/lib/file-utils"
+import { extractTextFromFile, validateResumeFile, getSampleResume } from "@/lib/file-utils"
 import type { ResumeFile } from "@/components/resume-optimizer"
 import { Progress } from "@/components/ui/progress"
 
@@ -23,6 +23,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
   const [processingError, setProcessingError] = useState<string | null>(null)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingWarning, setProcessingWarning] = useState<string | null>(null)
+  const [usingSampleResume, setUsingSampleResume] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -64,6 +65,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
       onFileSelected(null)
       setProcessingError(null)
       setProcessingWarning(null)
+      setUsingSampleResume(false)
       return
     }
 
@@ -82,6 +84,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
     setIsProcessing(true)
     setProcessingError(null)
     setProcessingWarning(null)
+    setUsingSampleResume(false)
     simulateProgress()
 
     try {
@@ -90,11 +93,32 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         description: "Extracting text from your resume...",
       })
 
+      console.log(`Processing ${file.name} (${file.type}, ${file.size} bytes)`)
+
+      // Get file extension
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || ""
+
+      // Special handling for DOCX files
+      if (fileExt === "docx") {
+        console.log("DOCX file detected, using specialized processing")
+      }
+
       const text = await extractTextFromFile(file)
 
       completeProgress()
 
-      if (text.length < 100) {
+      // Check if we're using the sample resume
+      if (text === getSampleResume()) {
+        setUsingSampleResume(true)
+        setProcessingWarning(
+          "We couldn't extract text from your file. Using a sample resume for demonstration purposes.",
+        )
+        toast({
+          title: "Processing issue",
+          description: "We couldn't extract text from your file. Using a sample resume instead.",
+          variant: "default",
+        })
+      } else if (text.length < 100) {
         setProcessingWarning("The extracted text seems very short. The file might not be properly processed.")
         toast({
           title: "Warning",
@@ -109,22 +133,59 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         type: file.name.split(".").pop()?.toLowerCase() || "",
       })
 
-      toast({
-        title: "File processed",
-        description: "Your resume has been successfully processed.",
-      })
+      if (!usingSampleResume) {
+        toast({
+          title: "File processed",
+          description: "Your resume has been successfully processed.",
+        })
+      }
     } catch (error) {
       completeProgress()
       const errorMessage = error instanceof Error ? error.message : "Could not extract text from the file"
-      toast({
-        title: "Error reading file",
-        description: errorMessage,
-        variant: "destructive",
-      })
-      setProcessingError(errorMessage)
+
+      // Special handling for DOCX files
+      if (file.name.endsWith(".docx")) {
+        const docxError = "We're having trouble processing your DOCX file. Try converting it to PDF or TXT format."
+        toast({
+          title: "DOCX Processing Error",
+          description: docxError,
+          variant: "destructive",
+        })
+        setProcessingError(docxError)
+
+        // Offer to use sample resume
+        handleUseSampleResume(file)
+      } else {
+        toast({
+          title: "Error reading file",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        setProcessingError(errorMessage)
+      }
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  const handleUseSampleResume = (originalFile: File) => {
+    setUsingSampleResume(true)
+    const sampleText = getSampleResume()
+
+    onFileSelected({
+      file: originalFile,
+      text: sampleText,
+      type: originalFile.name.split(".").pop()?.toLowerCase() || "",
+    })
+
+    setProcessingWarning(
+      "Using a sample resume for demonstration purposes. You can continue with the optimization process.",
+    )
+
+    toast({
+      title: "Using sample resume",
+      description: "You can continue with the optimization process using our sample resume.",
+    })
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -153,6 +214,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
     onFileSelected(null)
     setProcessingError(null)
     setProcessingWarning(null)
+    setUsingSampleResume(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -162,6 +224,19 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
     if (selectedFile) {
       await handleFileChange(selectedFile.file)
     }
+  }
+
+  const handleUseSampleResumeClick = () => {
+    if (selectedFile) {
+      handleUseSampleResume(selectedFile.file)
+    } else if (fileInputRef.current?.files?.[0]) {
+      handleUseSampleResume(fileInputRef.current.files[0])
+    } else {
+      // Create a dummy file if no file is selected
+      const dummyFile = new File([""], "sample-resume.txt", { type: "text/plain" })
+      handleUseSampleResume(dummyFile)
+    }
+    setProcessingError(null)
   }
 
   return (
@@ -174,11 +249,14 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
           <AlertTitle>Error</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{processingError}</p>
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button variant="outline" size="sm" onClick={handleButtonClick}>
                 Try Another File
               </Button>
-              <Button variant="default" size="sm" onClick={() => setProcessingError(null)}>
+              <Button variant="default" size="sm" onClick={handleUseSampleResumeClick}>
+                Use Sample Resume
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setProcessingError(null)}>
                 Dismiss
               </Button>
             </div>
@@ -191,6 +269,16 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
           <FileWarning className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <AlertTitle className="text-amber-600 dark:text-amber-400">Warning</AlertTitle>
           <AlertDescription className="text-amber-600 dark:text-amber-400">{processingWarning}</AlertDescription>
+        </Alert>
+      )}
+
+      {usingSampleResume && (
+        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+          <FileType className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-600 dark:text-blue-400">Using Sample Resume</AlertTitle>
+          <AlertDescription className="text-blue-600 dark:text-blue-400">
+            You're using our sample resume. You can continue with the optimization process.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -207,16 +295,21 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
             <Upload className="h-12 w-12 text-slate-400 mb-4" />
             <h3 className="text-lg font-medium mb-2">Drag and drop your resume</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Supports PDF, DOCX, and TXT formats</p>
-            <Button onClick={handleButtonClick} variant="outline" disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Processing...
-                </>
-              ) : (
-                "Browse Files"
-              )}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleButtonClick} variant="outline" disabled={isProcessing}>
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  "Browse Files"
+                )}
+              </Button>
+              <Button onClick={handleUseSampleResumeClick} variant="secondary">
+                Use Sample Resume
+              </Button>
+            </div>
             <input
               type="file"
               ref={fileInputRef}
@@ -275,6 +368,22 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* DOCX File Tips */}
+      {selectedFile?.file.name.endsWith(".docx") && (
+        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+          <FileType className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-600 dark:text-blue-400">DOCX File Tips</AlertTitle>
+          <AlertDescription className="text-blue-600 dark:text-blue-400">
+            <p>If you're having issues with DOCX files:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li>Try saving your DOCX as a PDF or TXT file</li>
+              <li>Ensure your DOCX file doesn't contain complex formatting or images</li>
+              <li>Make sure the file isn't password protected or corrupted</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   )
