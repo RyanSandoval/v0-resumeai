@@ -3,7 +3,7 @@ import { ResumePreview } from "@/components/resume-preview"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { PrismaClient } from "@prisma/client"
+import * as db from "@/lib/db"
 
 interface ResumePageProps {
   params: {
@@ -23,16 +23,11 @@ export default async function ResumePage({ params }: ResumePageProps) {
   }
 
   try {
-    // Create a new PrismaClient instance directly
-    const prisma = new PrismaClient()
+    // Initialize database if needed
+    await db.initDatabase()
 
     // Get the resume
-    const resume = await prisma.resume.findUnique({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
-    })
+    const resume = await db.getResumeById(params.id, session.user.id)
 
     if (!resume) {
       return (
@@ -56,7 +51,7 @@ export default async function ResumePage({ params }: ResumePageProps) {
     // Create a dummy resumeFile object to satisfy the ResumePreview component
     const resumeFile = {
       file: new File([""], "resume.txt", { type: "text/plain" }),
-      text: resume.originalText,
+      text: resume.original_text,
       type: "txt",
     }
 
@@ -75,9 +70,9 @@ export default async function ResumePage({ params }: ResumePageProps) {
 
           <ResumePreview
             result={{
-              originalText: resume.originalText,
-              optimizedText: resume.optimizedText,
-              jobDescription: resume.jobDescription,
+              originalText: resume.original_text,
+              optimizedText: resume.optimized_text,
+              jobDescription: resume.job_description,
               changes: [],
               keywords: {
                 matched: resume.keywords,
@@ -86,7 +81,7 @@ export default async function ResumePage({ params }: ResumePageProps) {
               score: resume.score,
             }}
             resumeFile={resumeFile}
-            jobDescription={resume.jobDescription}
+            jobDescription={resume.job_description}
             onBack={() => {}}
             onUpdate={() => {}}
             readOnly={true}

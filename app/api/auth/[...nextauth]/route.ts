@@ -1,15 +1,8 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import TwitterProvider from "next-auth/providers/twitter"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { PrismaClient } from "@prisma/client"
-
-// Create a new PrismaClient instance here instead of importing
-// This ensures we don't try to import a non-existent module during build
-const prisma = new PrismaClient()
 
 export const authOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -22,9 +15,19 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
+    async jwt({ token, account, profile }) {
+      // Persist the OAuth access_token and or the user id to the token
+      if (account) {
+        token.accessToken = account.access_token
+        token.id = profile?.id
+      }
+      return token
+    },
+    async session({ session, token }) {
+      // Send properties to the client
       if (session.user) {
-        session.user.id = user.id
+        session.user.id = token.sub
+        session.accessToken = token.accessToken
       }
       return session
     },
@@ -33,6 +36,7 @@ export const authOptions = {
     signIn: "/auth/signin",
     error: "/auth/error",
   },
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 }
 

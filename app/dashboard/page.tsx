@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { SavedResumesList } from "@/components/dashboard/saved-resumes-list"
-import { PrismaClient } from "@prisma/client"
+import * as db from "@/lib/db"
 
 export default async function DashboardPage() {
   // Import and use getServerSession dynamically
@@ -14,18 +14,11 @@ export default async function DashboardPage() {
   }
 
   try {
-    // Create a new PrismaClient instance directly
-    const prisma = new PrismaClient()
+    // Initialize database if needed
+    await db.initDatabase()
 
     // Get user resumes
-    const resumes = await prisma.resume.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    })
+    const resumes = await db.getResumesByUserId(session.user.id)
 
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">

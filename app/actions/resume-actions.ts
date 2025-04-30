@@ -1,12 +1,10 @@
 "use server"
 
 import { getServerSession } from "next-auth/next"
-import { PrismaClient } from "@prisma/client"
 import { revalidatePath } from "next/cache"
+import { v4 as uuidv4 } from "uuid"
+import * as db from "@/lib/db"
 import type { OptimizationResult } from "@/components/resume-optimizer"
-
-// Create a new PrismaClient instance directly
-const prisma = new PrismaClient()
 
 // Helper function to get the session
 async function getSession() {
@@ -23,17 +21,25 @@ export async function saveResume(result: OptimizationResult, title = "Untitled R
   }
 
   try {
-    const resume = await prisma.resume.create({
-      data: {
-        userId: session.user.id,
-        title,
-        originalText: result.originalText,
-        optimizedText: result.optimizedText,
-        jobDescription: result.jobDescription || "",
-        jobUrl: jobUrl || "",
-        keywords: result.keywords.matched.concat(result.keywords.missing),
-        score: result.score,
-      },
+    // Ensure user exists in database
+    await db.createUser({
+      id: session.user.id,
+      name: session.user.name || undefined,
+      email: session.user.email || undefined,
+      image: session.user.image || undefined,
+    })
+
+    // Create resume
+    const resume = await db.createResume({
+      id: uuidv4(),
+      userId: session.user.id,
+      title,
+      originalText: result.originalText,
+      optimizedText: result.optimizedText,
+      jobDescription: result.jobDescription || "",
+      jobUrl: jobUrl || "",
+      keywords: result.keywords.matched.concat(result.keywords.missing),
+      score: result.score,
     })
 
     revalidatePath("/dashboard")
@@ -52,15 +58,7 @@ export async function getUserResumes() {
   }
 
   try {
-    const resumes = await prisma.resume.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    })
-
+    const resumes = await db.getResumesByUserId(session.user.id)
     return { success: true, resumes }
   } catch (error) {
     console.error("Error fetching resumes:", error)
@@ -76,12 +74,7 @@ export async function getResumeById(id: string) {
   }
 
   try {
-    const resume = await prisma.resume.findUnique({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    })
+    const resume = await db.getResumeById(id, session.user.id)
 
     if (!resume) {
       return { success: false, error: "Resume not found" }
@@ -111,13 +104,7 @@ export async function deleteResume(id: string) {
   }
 
   try {
-    await prisma.resume.delete({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    })
-
+    await db.deleteResume(id, session.user.id)
     revalidatePath("/dashboard")
     return { success: true }
   } catch (error) {
@@ -134,16 +121,7 @@ export async function updateResumeTitle(id: string, title: string) {
   }
 
   try {
-    await prisma.resume.update({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-      data: {
-        title,
-      },
-    })
-
+    await db.updateResumeTitle(id, session.user.id, title)
     revalidatePath("/dashboard")
     return { success: true }
   } catch (error) {
