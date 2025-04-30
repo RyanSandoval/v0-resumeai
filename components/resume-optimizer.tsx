@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ResumeUpload } from "@/components/resume-upload"
+import { ClientFileProcessor } from "@/components/client-file-processor"
 import { JobDescriptionInput } from "@/components/job-description-input"
 import { KeywordsInput } from "@/components/keywords-input"
 import { OptimizationSettings } from "@/components/optimization-settings"
@@ -194,7 +194,7 @@ export function ResumeOptimizer() {
         <Card className="shadow-lg border-slate-200 dark:border-slate-700">
           <CardContent className="p-6">
             <div className="space-y-8">
-              <ResumeUpload onFileSelected={setResumeFile} selectedFile={resumeFile} />
+              <ClientFileProcessor onFileSelected={setResumeFile} selectedFile={resumeFile} />
 
               {optimizationError && (
                 <Alert variant="destructive">

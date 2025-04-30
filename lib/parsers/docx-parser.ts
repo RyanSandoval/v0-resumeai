@@ -1,32 +1,65 @@
 /**
  * DOCX parsing utilities using mammoth.js
+ * This file is designed to work in browser environments only
  */
 
-import mammoth from "mammoth"
 import { getSampleResume } from "../file-utils"
+
+// We'll use dynamic imports for mammoth.js to avoid SSR issues
+let mammoth: typeof import("mammoth") | null = null
+
+/**
+ * Initialize mammoth.js (client-side only)
+ */
+async function initMammoth() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  try {
+    // Dynamically import mammoth.js only on the client side
+    mammoth = await import("mammoth")
+    return true
+  } catch (error) {
+    console.error("Failed to initialize mammoth.js:", error)
+    return false
+  }
+}
 
 /**
  * Extract text from DOCX file using mammoth.js
  */
 export async function extractTextFromDOCX(file: File): Promise<string> {
   try {
-    console.log(`Starting mammoth.js extraction for: ${file.name} (${file.size} bytes)`)
+    console.log(`Starting DOCX extraction for: ${file.name} (${file.size} bytes)`)
+
+    // Make sure we're in a browser environment
+    if (typeof window === "undefined") {
+      throw new Error("DOCX extraction can only be performed in a browser environment")
+    }
+
+    // Initialize mammoth.js if needed
+    if (!mammoth) {
+      const initialized = await initMammoth()
+      if (!initialized) {
+        throw new Error("Failed to initialize mammoth.js")
+      }
+    }
 
     // Convert file to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()
 
     // Extract text using mammoth.js
-    const result = await mammoth.extractRawText({ arrayBuffer })
+    const result = await mammoth!.extractRawText({ arrayBuffer })
     const text = result.value
 
-    // Check if we got valid text content
     if (text && text.length > 100) {
       console.log("Successfully extracted text using mammoth.js")
-      return cleanupDocxText(text)
+      return text
+    } else {
+      console.log("Mammoth.js extraction returned insufficient text, trying fallback method")
+      return await extractTextFromDOCXFallback(file)
     }
-
-    console.log("Mammoth.js extraction returned insufficient text, trying fallback method")
-    return await extractTextFromDOCXFallback(file)
   } catch (error) {
     console.error("Error in mammoth.js extraction:", error)
     return await extractTextFromDOCXFallback(file)
@@ -40,30 +73,20 @@ async function extractTextFromDOCXFallback(file: File): Promise<string> {
   try {
     console.log("Using DOCX fallback extraction method")
 
-    // Try direct text extraction (rarely works for DOCX)
-    const directText = await readAsTextPromise(file)
+    // Try direct text extraction
+    const text = await readAsTextPromise(file)
 
-    // Check if we got valid text content (not binary DOCX data which contains "PK")
-    if (directText && directText.length > 100 && !directText.includes("PK")) {
+    // Check if we got valid text content
+    if (text && text.length > 100 && !isDOCXBinary(text)) {
       console.log("Successfully extracted text from DOCX using direct method")
-      return cleanupDocxText(directText)
+      return text
     }
 
-    // Try binary extraction
-    const arrayBuffer = await readAsArrayBufferPromise(file)
-    const text = await extractTextFromDOCXBinary(arrayBuffer)
-
-    if (text && text.length > 100) {
-      console.log("Successfully extracted text from DOCX using binary extraction")
-      return cleanupDocxText(text)
-    }
-
-    // Try to extract XML content from DOCX (which is a ZIP file)
-    const xmlContent = await extractXMLFromDOCX(arrayBuffer)
-
+    // Try to extract text from XML content
+    const xmlContent = await extractXMLFromDOCX(file)
     if (xmlContent && xmlContent.length > 100) {
-      console.log("Successfully extracted XML content from DOCX")
-      return cleanupDocxText(xmlContent)
+      console.log("Successfully extracted text from DOCX XML content")
+      return cleanupDOCXText(xmlContent)
     }
 
     console.log("All DOCX extraction methods failed, using sample resume")
@@ -75,103 +98,81 @@ async function extractTextFromDOCXFallback(file: File): Promise<string> {
 }
 
 /**
- * Extract text from DOCX binary data
+ * Extract XML content from DOCX file
  */
-async function extractTextFromDOCXBinary(buffer: ArrayBuffer): Promise<string> {
-  const uint8Array = new Uint8Array(buffer)
-  let result = ""
-  let currentText = ""
+async function extractXMLFromDOCX(file: File): Promise<string> {
+  try {
+    // DOCX files are ZIP archives containing XML files
+    // We can try to extract text from the XML content
+    const JSZip = (await import("jszip")).default
 
-  // Look for text chunks in the binary data
-  for (let i = 0; i < uint8Array.length; i++) {
-    const byte = uint8Array[i]
+    const arrayBuffer = await file.arrayBuffer()
+    const zip = await JSZip.loadAsync(arrayBuffer)
 
-    // If it's a printable ASCII character or newline
-    if ((byte >= 32 && byte <= 126) || byte === 10 || byte === 13) {
-      currentText += String.fromCharCode(byte)
-    } else {
-      // If we have accumulated some text
-      if (currentText.length > 4) {
-        result += currentText + " "
-      }
-      currentText = ""
+    // Try to get document.xml which contains the main content
+    const documentXml = zip.file("word/document.xml")
+    if (documentXml) {
+      const content = await documentXml.async("text")
+      return extractTextFromXML(content)
     }
 
-    // Limit processing for large files
-    if (i > 1000000) break
+    return ""
+  } catch (error) {
+    console.error("Error extracting XML from DOCX:", error)
+    return ""
   }
-
-  return result
 }
 
 /**
- * Extract XML content from DOCX file
+ * Extract text from XML content
  */
-async function extractXMLFromDOCX(buffer: ArrayBuffer): Promise<string> {
-  const uint8Array = new Uint8Array(buffer)
-  const content = new TextDecoder().decode(uint8Array)
+function extractTextFromXML(xml: string): string {
+  // Simple regex to extract text from XML tags
+  const textMatches = xml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []
+  const text = textMatches
+    .map((match) => {
+      const content = match.replace(/<[^>]*>/g, "")
+      return content
+    })
+    .join(" ")
 
-  // Look for XML content
-  const xmlMatches = content.match(/<\?xml[^>]*>[\s\S]*?<\/[^>]*>/g)
-
-  if (xmlMatches && xmlMatches.length > 0) {
-    // Extract text from XML
-    let extractedText = ""
-
-    for (const xml of xmlMatches) {
-      // Remove XML tags but keep their content
-      const textContent = xml.replace(/<[^>]+>/g, " ")
-
-      // If we found substantial text, add it
-      if (textContent.length > 50) {
-        extractedText += textContent + " "
-      }
-    }
-
-    return extractedText
-  }
-
-  return ""
+  return cleanupDOCXText(text)
 }
 
 /**
  * Clean up extracted DOCX text
  */
-function cleanupDocxText(text: string): string {
+function cleanupDOCXText(text: string): string {
   // Remove excessive whitespace
   let cleaned = text.replace(/\s+/g, " ")
 
   // Remove non-printable characters
   cleaned = cleaned.replace(/[^\x20-\x7E\n\r\t]/g, "")
 
-  // Replace XML entities
-  cleaned = cleaned
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
+  return cleaned.trim()
+}
 
-  // Restore common resume section headers
-  const sectionHeaders = [
-    "SUMMARY",
-    "EXPERIENCE",
-    "EDUCATION",
-    "SKILLS",
-    "PROJECTS",
-    "CERTIFICATIONS",
-    "WORK HISTORY",
-    "EMPLOYMENT",
-  ]
+/**
+ * Check if the content appears to be binary DOCX data
+ */
+function isDOCXBinary(content: string): boolean {
+  // Check for DOCX signature (PK zip header)
+  if (content.startsWith("PK")) {
+    return true
+  }
 
-  for (const header of sectionHeaders) {
-    const regex = new RegExp(`\\b${header}\\b`, "i")
-    if (regex.test(cleaned)) {
-      cleaned = cleaned.replace(regex, `\n\n${header.toUpperCase()}\n`)
+  // Check for binary content
+  const checkLength = Math.min(content.length, 1000)
+  let binaryCount = 0
+
+  for (let i = 0; i < checkLength; i++) {
+    const code = content.charCodeAt(i)
+    if ((code < 32 || code > 126) && ![9, 10, 13].includes(code)) {
+      binaryCount++
     }
   }
 
-  return cleaned.trim()
+  return binaryCount / checkLength > 0.1
 }
 
 // Promise wrapper for FileReader.readAsText
@@ -181,15 +182,5 @@ function readAsTextPromise(file: File): Promise<string> {
     reader.onload = () => resolve(reader.result as string)
     reader.onerror = () => reject(new Error("Failed to read file as text"))
     reader.readAsText(file)
-  })
-}
-
-// Promise wrapper for FileReader.readAsArrayBuffer
-function readAsArrayBufferPromise(file: File): Promise<ArrayBuffer> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = () => reject(new Error("Failed to read file as array buffer"))
-    reader.readAsArrayBuffer(file)
   })
 }

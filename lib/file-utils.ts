@@ -4,11 +4,6 @@
  * and generating optimized files in various formats
  */
 
-import { Document, Packer, Paragraph, TextRun } from "docx"
-import { jsPDF } from "jspdf"
-import { extractTextFromPDF } from "./parsers/pdf-parser"
-import { extractTextFromDOCX } from "./parsers/docx-parser"
-
 // Sample resume text for fallback
 const SAMPLE_RESUME = `JOHN DOE
 123 Main Street, City, State 12345
@@ -68,8 +63,14 @@ CERTIFICATIONS
 
 /**
  * Main function to extract text from uploaded resume files
+ * This function is designed to be called only in browser environments
  */
 export async function extractTextFromFile(file: File): Promise<string> {
+  // Make sure we're in a browser environment
+  if (typeof window === "undefined") {
+    throw new Error("File extraction can only be performed in a browser environment")
+  }
+
   try {
     console.log(`Processing file: ${file.name}, type: ${file.type}, size: ${file.size} bytes`)
 
@@ -83,8 +84,12 @@ export async function extractTextFromFile(file: File): Promise<string> {
     const fileType = file.name.split(".").pop()?.toLowerCase()
 
     if (fileType === "pdf") {
+      // Dynamically import the PDF parser
+      const { extractTextFromPDF } = await import("./parsers/pdf-parser")
       return await extractTextFromPDF(file)
     } else if (fileType === "docx") {
+      // Dynamically import the DOCX parser
+      const { extractTextFromDOCX } = await import("./parsers/docx-parser")
       return await extractTextFromDOCX(file)
     } else if (fileType === "txt") {
       return await extractTextFromTXT(file)
@@ -132,13 +137,22 @@ export async function generateOptimizedFile(
   optimizedText: string,
   format: "pdf" | "docx" | "txt" = "txt",
 ): Promise<File> {
+  // Make sure we're in a browser environment
+  if (typeof window === "undefined") {
+    throw new Error("File generation can only be performed in a browser environment")
+  }
+
   try {
     const originalName = originalFile.name.replace(/\.[^/.]+$/, "")
 
     if (format === "pdf") {
-      return generatePDF(originalName, optimizedText)
+      // Dynamically import jsPDF
+      const { jsPDF } = await import("jspdf")
+      return await generatePDF(originalName, optimizedText, jsPDF)
     } else if (format === "docx") {
-      return generateDOCX(originalName, optimizedText)
+      // Dynamically import docx
+      const { Document, Packer, Paragraph, TextRun } = await import("docx")
+      return await generateDOCX(originalName, optimizedText, { Document, Packer, Paragraph, TextRun })
     } else {
       // Default to TXT
       const blob = new Blob([optimizedText], { type: "text/plain" })
@@ -155,8 +169,8 @@ export async function generateOptimizedFile(
 /**
  * Generate PDF file using jsPDF
  */
-async function generatePDF(fileName: string, content: string): Promise<File> {
-  const doc = new jsPDF()
+async function generatePDF(fileName: string, content: string, jsPDFModule: any): Promise<File> {
+  const doc = new jsPDFModule()
 
   // Split content into lines
   const lines = content.split("\n")
@@ -185,7 +199,9 @@ async function generatePDF(fileName: string, content: string): Promise<File> {
 /**
  * Generate DOCX file using docx library
  */
-async function generateDOCX(fileName: string, content: string): Promise<File> {
+async function generateDOCX(fileName: string, content: string, docxModules: any): Promise<File> {
+  const { Document, Packer, Paragraph, TextRun } = docxModules
+
   // Create document
   const doc = new Document({
     sections: [

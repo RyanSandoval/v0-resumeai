@@ -1,15 +1,34 @@
 /**
  * PDF parsing utilities using PDF.js
+ * This file is designed to work in browser environments only
  */
 
-import * as pdfjs from "pdfjs-dist"
 import { getSampleResume } from "../file-utils"
-import { dispatchParsingMethod } from "./parser-events"
 
-// Initialize PDF.js worker in browser environment only
-if (typeof window !== "undefined") {
-  const workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url)
-  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc.toString()
+// We'll use dynamic imports for PDF.js to avoid SSR issues
+let pdfjs: typeof import("pdfjs-dist") | null = null
+
+/**
+ * Initialize PDF.js (client-side only)
+ */
+async function initPDFJS() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  try {
+    // Dynamically import PDF.js only on the client side
+    pdfjs = await import("pdfjs-dist")
+
+    // Set up the worker
+    const PDFJSWorker = await import("pdfjs-dist/build/pdf.worker.mjs")
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJSWorker.default
+
+    return true
+  } catch (error) {
+    console.error("Failed to initialize PDF.js:", error)
+    return false
+  }
 }
 
 /**
@@ -17,13 +36,26 @@ if (typeof window !== "undefined") {
  */
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
-    console.log(`Starting PDF.js extraction for: ${file.name} (${file.size} bytes)`)
+    console.log(`Starting PDF extraction for: ${file.name} (${file.size} bytes)`)
+
+    // Make sure we're in a browser environment
+    if (typeof window === "undefined") {
+      throw new Error("PDF extraction can only be performed in a browser environment")
+    }
+
+    // Initialize PDF.js if needed
+    if (!pdfjs) {
+      const initialized = await initPDFJS()
+      if (!initialized) {
+        throw new Error("Failed to initialize PDF.js")
+      }
+    }
 
     // Convert file to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()
 
     // Load the PDF document
-    const loadingTask = pdfjs.getDocument({ data: arrayBuffer })
+    const loadingTask = pdfjs!.getDocument({ data: arrayBuffer })
     const pdf = await loadingTask.promise
 
     console.log(`PDF loaded successfully. Number of pages: ${pdf.numPages}`)
@@ -58,7 +90,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
 
     if (fullText.trim().length > 100) {
       console.log("Successfully extracted text using PDF.js")
-      dispatchParsingMethod("PDF.js")
       return fullText
     } else {
       console.log("PDF.js extraction returned insufficient text, trying fallback method")
