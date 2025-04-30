@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, Download, SplitSquareVertical, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -65,6 +65,15 @@ export function ResumePreview({
   const [optimizedText, setOptimizedText] = useState(result.optimizedText)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [resumeTitle, setResumeTitle] = useState("My Optimized Resume")
+  const [currentScore, setCurrentScore] = useState(result.score)
+  const [currentKeywords, setCurrentKeywords] = useState(result.keywords)
+  const [isScoreUpdating, setIsScoreUpdating] = useState(false)
+
+  // Effect to initialize score from result
+  useEffect(() => {
+    setCurrentScore(result.score)
+    setCurrentKeywords(result.keywords)
+  }, [result.score, result.keywords])
 
   const handleDownload = async () => {
     setIsDownloading(true)
@@ -113,6 +122,8 @@ export function ResumePreview({
         {
           ...result,
           optimizedText: activeTab === "edit" ? optimizedText : result.optimizedText,
+          score: currentScore,
+          keywords: currentKeywords,
         },
         resumeTitle,
         window.location.href.includes("?url=")
@@ -196,12 +207,89 @@ export function ResumePreview({
   // Handle updates from the editable resume
   const handleResumeUpdate = (updatedText: string) => {
     setOptimizedText(updatedText)
+    setIsScoreUpdating(true)
+
+    // Extract keywords from job description to recalculate score
+    const jobKeywords = extractKeywords(jobDescription || "")
+
+    // Check which keywords are present in the resume
+    const matched = jobKeywords.filter((keyword) => updatedText.toLowerCase().includes(keyword.toLowerCase()))
+
+    const missing = jobKeywords.filter((keyword) => !updatedText.toLowerCase().includes(keyword.toLowerCase()))
+
+    // Calculate new score
+    const newScore = calculateMatchScore(matched.length, jobKeywords.length)
+
+    // Update local state
+    setCurrentScore(newScore)
+    setCurrentKeywords({ matched, missing })
+    setIsScoreUpdating(false)
 
     // Update the parent component with the new result
     onUpdate({
       ...result,
       optimizedText: updatedText,
+      score: newScore,
+      keywords: { matched, missing },
     })
+  }
+
+  // Extract keywords from text (simplified version)
+  const extractKeywords = (text: string): string[] => {
+    if (!text) return []
+
+    const words = text.toLowerCase().split(/\W+/)
+    const commonWords = new Set([
+      "the",
+      "and",
+      "a",
+      "an",
+      "in",
+      "on",
+      "at",
+      "to",
+      "for",
+      "with",
+      "by",
+      "of",
+      "from",
+      "as",
+      "is",
+      "are",
+      "was",
+      "were",
+      "be",
+      "been",
+      "being",
+      "have",
+      "has",
+      "had",
+      "do",
+      "does",
+      "did",
+      "will",
+      "would",
+      "shall",
+      "should",
+      "may",
+      "might",
+      "must",
+      "can",
+      "could",
+    ])
+
+    const filteredWords = words.filter((word) => word.length > 3 && !commonWords.has(word))
+    const wordCounts: Record<string, number> = {}
+
+    filteredWords.forEach((word) => {
+      wordCounts[word] = (wordCounts[word] || 0) + 1
+    })
+
+    const sortedWords = Object.entries(wordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map((entry) => entry[0])
+
+    return sortedWords.slice(0, 20)
   }
 
   // Function to format text for display
@@ -353,7 +441,11 @@ export function ResumePreview({
                   <TabsContent value="edit" className="m-0">
                     <div className="border-t p-0 bg-white dark:bg-slate-950 w-full">
                       <EditableResume
-                        result={result}
+                        result={{
+                          ...result,
+                          score: currentScore,
+                          keywords: currentKeywords,
+                        }}
                         jobDescription={jobDescription || ""}
                         onUpdate={handleResumeUpdate}
                       />
@@ -373,35 +465,25 @@ export function ResumePreview({
                     <div className="flex justify-between text-sm">
                       <span>Match Score</span>
                       <span className="font-medium">
-                        {activeTab === "edit"
-                          ? optimizedText
-                            ? calculateMatchScore(
-                                result.keywords.matched.length,
-                                result.keywords.matched.length + result.keywords.missing.length,
-                              )
-                            : result.score
-                          : result.score}
-                        %
+                        {activeTab === "edit" ? currentScore : result.score}%
+                        {isScoreUpdating && (
+                          <span className="ml-2 text-xs text-amber-500 animate-pulse">Updating...</span>
+                        )}
                       </span>
                     </div>
-                    <Progress
-                      value={
-                        activeTab === "edit"
-                          ? optimizedText
-                            ? calculateMatchScore(
-                                result.keywords.matched.length,
-                                result.keywords.matched.length + result.keywords.missing.length,
-                              )
-                            : result.score
-                          : result.score
-                      }
-                      className="h-2"
-                    />
+                    <Progress value={activeTab === "edit" ? currentScore : result.score} className="h-2" />
                   </div>
                 </CardContent>
               </Card>
 
-              <ResumeComparison result={result} jobDescription={jobDescription || ""} />
+              <ResumeComparison
+                result={{
+                  ...result,
+                  score: activeTab === "edit" ? currentScore : result.score,
+                  keywords: activeTab === "edit" ? currentKeywords : result.keywords,
+                }}
+                jobDescription={jobDescription || ""}
+              />
 
               <Card>
                 <CardContent className="p-4">

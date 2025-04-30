@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -26,40 +26,11 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
   const [isEditing, setIsEditing] = useState(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { toast } = useToast()
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now())
+  const [pendingUpdate, setPendingUpdate] = useState(false)
 
-  // Update score when text changes
-  useEffect(() => {
-    // Debounce to avoid too many calculations
-    const timer = setTimeout(() => {
-      updateScoreAndKeywords(editableText)
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [editableText, jobDescription])
-
-  // Update the score and keywords based on the current text
-  const updateScoreAndKeywords = (text: string) => {
-    // Extract keywords from job description
-    const jobKeywords = extractKeywords(jobDescription)
-
-    // Check which keywords are present in the resume
-    const matched = jobKeywords.filter((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
-
-    const missing = jobKeywords.filter((keyword) => !text.toLowerCase().includes(keyword.toLowerCase()))
-
-    // Calculate new score
-    const newScore = calculateMatchScore(matched.length, jobKeywords.length)
-
-    // Update state
-    setScore(newScore)
-    setKeywords({ matched, missing })
-
-    // Notify parent component
-    onUpdate(text)
-  }
-
-  // Extract keywords from text
-  const extractKeywords = (text: string): string[] => {
+  // Memoize the keyword extraction function to improve performance
+  const extractKeywords = useCallback((text: string): string[] => {
     // Simple keyword extraction - in a real app, this would be more sophisticated
     const words = text.toLowerCase().split(/\W+/)
     const commonWords = new Set([
@@ -116,10 +87,69 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
 
     // Return top keywords
     return sortedWords.slice(0, 20)
-  }
+  }, [])
+
+  // Memoize the score and keywords update function
+  const updateScoreAndKeywords = useCallback(
+    (text: string) => {
+      // Extract keywords from job description
+      const jobKeywords = extractKeywords(jobDescription)
+
+      // Check which keywords are present in the resume
+      const matched = jobKeywords.filter((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
+
+      const missing = jobKeywords.filter((keyword) => !text.toLowerCase().includes(keyword.toLowerCase()))
+
+      // Calculate new score
+      const newScore = calculateMatchScore(matched.length, jobKeywords.length)
+
+      // Update state
+      setScore(newScore)
+      setKeywords({ matched, missing })
+      setPendingUpdate(false)
+      setLastUpdateTime(Date.now())
+
+      // Notify parent component
+      onUpdate(text)
+    },
+    [jobDescription, extractKeywords, onUpdate],
+  )
+
+  // Update score when text changes with improved debouncing
+  useEffect(() => {
+    if (!editableText) return
+
+    // Mark that we have a pending update
+    setPendingUpdate(true)
+
+    // Use a shorter delay for better responsiveness
+    const timer = setTimeout(() => {
+      updateScoreAndKeywords(editableText)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [editableText, updateScoreAndKeywords])
+
+  // Force update if too much time has passed with a pending update
+  useEffect(() => {
+    if (!pendingUpdate) return
+
+    // If we have a pending update for more than 2 seconds, force an update
+    const forceUpdateTimer = setTimeout(() => {
+      if (pendingUpdate) {
+        updateScoreAndKeywords(editableText)
+      }
+    }, 2000)
+
+    return () => clearTimeout(forceUpdateTimer)
+  }, [pendingUpdate, editableText, updateScoreAndKeywords])
 
   // Toggle between editing and preview modes
   const toggleEditing = () => {
+    // If we have pending updates, apply them before toggling
+    if (pendingUpdate) {
+      updateScoreAndKeywords(editableText)
+    }
     setIsEditing(!isEditing)
   }
 
@@ -205,7 +235,11 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
 
       // Insert the keyword
       lines.splice(endOfSkillsSection, 0, `• ${keyword}`)
-      setEditableText(lines.join("\n"))
+      const newText = lines.join("\n")
+      setEditableText(newText)
+
+      // Force immediate score update
+      updateScoreAndKeywords(newText)
 
       toast({
         title: "Keyword added",
@@ -213,7 +247,11 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
       })
     } else {
       // If we can't find a skills section, just append to the end
-      setEditableText(editableText + `\n\nSkills:\n• ${keyword}`)
+      const newText = editableText + `\n\nSkills:\n• ${keyword}`
+      setEditableText(newText)
+
+      // Force immediate score update
+      updateScoreAndKeywords(newText)
 
       toast({
         title: "Keyword added",
@@ -266,6 +304,9 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
 
     setEditableText(updatedText)
 
+    // Force immediate score update
+    updateScoreAndKeywords(updatedText)
+
     toast({
       title: "Formatting applied",
       description: successMessage,
@@ -296,6 +337,9 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
 
     setEditableText(updatedText)
 
+    // Force immediate score update
+    updateScoreAndKeywords(updatedText)
+
     toast({
       title: "Content improvement",
       description: successMessage,
@@ -322,6 +366,9 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
     }
 
     setEditableText(updatedText)
+
+    // Force immediate score update
+    updateScoreAndKeywords(updatedText)
 
     toast({
       title: "Structure improvement",
@@ -623,6 +670,7 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
             <div className="flex items-center">
               <span className={`text-lg font-bold ${getScoreColor(score)}`}>{score}</span>
               <span className="text-slate-500 ml-1">/100</span>
+              {pendingUpdate && <span className="ml-2 text-xs text-amber-500 animate-pulse">Updating...</span>}
             </div>
           </div>
 
