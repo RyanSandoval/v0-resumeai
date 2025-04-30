@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { signIn, signOut, useSession } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,28 +11,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Loader2, LogOut, User } from "lucide-react"
+import { Loader2, LogOut, User, UserCircle } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export function AuthButton() {
   const { data: session, status } = useSession()
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const handleSignIn = async () => {
-    setIsLoading(true)
-    await signIn(undefined, { callbackUrl: "/" })
-    setIsLoading(false)
+    router.push("/auth/signin")
   }
 
   const handleSignOut = async () => {
-    setIsLoading(true)
-    await signOut({ callbackUrl: "/" })
-    setIsLoading(false)
+    try {
+      setIsLoading(true)
+      await signOut({ callbackUrl: "/" })
+    } catch (error) {
+      console.error("Error signing out:", error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (status === "loading") {
     return (
-      <Button variant="outline" disabled>
+      <Button variant="outline" disabled className="h-10">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         Loading...
       </Button>
@@ -45,8 +50,13 @@ export function AuthButton() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-10 w-10 rounded-full">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={session.user.image || ""} alt={session.user.name || "User"} />
-              <AvatarFallback>{session.user.name?.charAt(0) || "U"}</AvatarFallback>
+              {session.user.image ? (
+                <AvatarImage src={session.user.image || "/placeholder.svg"} alt={session.user.name || "User"} />
+              ) : (
+                <AvatarFallback>
+                  <UserCircle className="h-6 w-6" />
+                </AvatarFallback>
+              )}
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
@@ -69,7 +79,10 @@ export function AuthButton() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="cursor-pointer text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
-            onSelect={handleSignOut}
+            onSelect={(e) => {
+              e.preventDefault()
+              handleSignOut()
+            }}
             disabled={isLoading}
           >
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
@@ -81,8 +94,7 @@ export function AuthButton() {
   }
 
   return (
-    <Button onClick={handleSignIn} disabled={isLoading}>
-      {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+    <Button onClick={handleSignIn} className="h-10">
       Sign In
     </Button>
   )

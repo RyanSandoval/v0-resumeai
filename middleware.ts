@@ -1,22 +1,35 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { getToken } from "next-auth/jwt"
 
-// This middleware doesn't do much, but it ensures that the app loads correctly
-// even if Prisma client generation fails during build
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Check if the path is a protected route
+  const isProtectedRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/resume/")
+
+  // Get the token
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  })
+
+  // If it's a protected route and there's no token, redirect to sign in
+  if (isProtectedRoute && !token) {
+    const url = new URL("/auth/signin", request.url)
+    url.searchParams.set("callbackUrl", encodeURI(request.url))
+    return NextResponse.redirect(url)
+  }
+
+  // If it's the sign-in page and there's a token, redirect to dashboard
+  if (pathname === "/auth/signin" && token) {
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
   return NextResponse.next()
 }
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/dashboard/:path*", "/resume/:path*", "/auth/signin"],
 }
