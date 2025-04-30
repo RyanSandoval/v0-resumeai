@@ -88,11 +88,13 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     // Clean up the extracted text
     fullText = cleanupPDFText(fullText)
 
-    if (fullText.trim().length > 100) {
+    if (fullText.trim().length > 0) {
       console.log("Successfully extracted text using PDF.js")
+      // Log a sample of the extracted text for debugging
+      console.log("Extracted text sample:", fullText.substring(0, 200) + "...")
       return fullText
     } else {
-      console.log("PDF.js extraction returned insufficient text, trying fallback method")
+      console.log("PDF.js extraction returned empty text, trying fallback method")
       return await extractTextFromPDFFallback(file)
     }
   } catch (error) {
@@ -126,12 +128,71 @@ async function extractTextFromPDFFallback(file: File): Promise<string> {
       return cleanupPDFText(text)
     }
 
+    // Try one more approach - OCR-like text extraction from rendered pages
+    try {
+      const renderedText = await extractTextFromRenderedPDF(file)
+      if (renderedText && renderedText.length > 100) {
+        console.log("Successfully extracted text from PDF using rendered page extraction")
+        return cleanupPDFText(renderedText)
+      }
+    } catch (renderError) {
+      console.error("Error in rendered PDF extraction:", renderError)
+    }
+
     console.log("All PDF extraction methods failed, using sample resume")
     return getSampleResume()
   } catch (error) {
     console.error("All PDF extraction methods failed:", error)
     return getSampleResume()
   }
+}
+
+/**
+ * Extract text from rendered PDF pages
+ * This is a more advanced approach that tries to extract text from rendered pages
+ */
+async function extractTextFromRenderedPDF(file: File): Promise<string> {
+  if (!pdfjs) {
+    const initialized = await initPDFJS()
+    if (!initialized) {
+      throw new Error("Failed to initialize PDF.js")
+    }
+  }
+
+  const arrayBuffer = await file.arrayBuffer()
+  const pdf = await pdfjs!.getDocument({ data: arrayBuffer }).promise
+  let fullText = ""
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const viewport = page.getViewport({ scale: 1.5 })
+
+    // Create a canvas element
+    const canvas = document.createElement("canvas")
+    const context = canvas.getContext("2d")
+    canvas.height = viewport.height
+    canvas.width = viewport.width
+
+    // Render the PDF page to the canvas
+    await page.render({
+      canvasContext: context!,
+      viewport: viewport,
+    }).promise
+
+    // Extract text from the page
+    const textContent = await page.getTextContent()
+    let pageText = ""
+
+    for (const item of textContent.items) {
+      if ("str" in item) {
+        pageText += item.str + " "
+      }
+    }
+
+    fullText += pageText + "\n\n"
+  }
+
+  return fullText
 }
 
 /**

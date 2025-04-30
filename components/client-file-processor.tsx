@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ResumeUpload } from "@/components/resume-upload"
 import type { ResumeFile } from "@/components/resume-optimizer"
 import { isValidResumeContent } from "@/lib/file-utils"
@@ -12,17 +12,29 @@ interface ClientFileProcessorProps {
 }
 
 export function ClientFileProcessor({ onFileSelected, selectedFile }: ClientFileProcessorProps) {
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+  const [internalFile, setInternalFile] = useState<ResumeFile | null>(selectedFile)
   const { toast } = useToast()
 
+  // Use useEffect to detect client-side rendering
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Sync internal state with props
+  useEffect(() => {
+    setInternalFile(selectedFile)
+  }, [selectedFile])
+
+  // Handle file selection from the ResumeUpload component
   const handleFileSelected = (file: ResumeFile | null) => {
-    // FIX: Handle null case to reset the state
+    // Update internal state
+    setInternalFile(file)
+
+    // If file is null, reset the parent component
     if (!file) {
-      setIsProcessing(false)
       return
     }
-
-    setIsProcessing(true)
 
     // If the file is a PDF and is still being processed, we'll wait
     if (file.processing) {
@@ -37,14 +49,17 @@ export function ClientFileProcessor({ onFileSelected, selectedFile }: ClientFile
         description: "The uploaded file doesn't appear to be a valid resume. Please try another file.",
         variant: "destructive",
       })
-      setIsProcessing(false)
       return
     }
 
     // Pass the file to the parent component
     onFileSelected(file)
-    setIsProcessing(false)
   }
 
-  return <ResumeUpload onFileSelected={handleFileSelected} selectedFile={selectedFile} />
+  // Only render the component on the client side
+  if (!isClient) {
+    return <div>Loading file uploader...</div>
+  }
+
+  return <ResumeUpload onFileSelected={handleFileSelected} selectedFile={internalFile} />
 }

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ import type { ResumeFile } from "@/components/resume-optimizer"
 import { generatePDFDiagnostics } from "@/lib/diagnostics/pdf-diagnostics"
 
 interface ResumeUploadProps {
-  onFileSelected: (file: ResumeFile | null) => void // FIX: Allow null to reset state
+  onFileSelected: (file: ResumeFile | null) => void
   selectedFile: ResumeFile | null
 }
 
@@ -23,8 +23,19 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadKey, setUploadKey] = useState<number>(0) // Used to force re-render of file input
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Reset the component when selectedFile becomes null
+  useEffect(() => {
+    if (!selectedFile) {
+      setError(null)
+      setIsProcessing(false)
+      // Reset the file input by updating the key
+      setUploadKey((prev) => prev + 1)
+    }
+  }, [selectedFile])
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -64,77 +75,94 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         return
       }
 
-      // Check if it's a PDF file, which requires special handling
-      if (file.name.toLowerCase().endsWith(".pdf")) {
-        // For PDF files, we'll use a separate state to track processing
-        // Extract text from non-PDF files
-        const textPromise = extractTextFromFile(file)
+      // Get the file type
+      const fileType = file.name.split(".").pop()?.toLowerCase() || ""
 
-        // We'll set up the UI first with empty text, then update when processing is complete
-        onFileSelected({
-          file,
-          text: "",
-          type: "pdf",
-          processing: true,
-        })
+      // For PDF files, we need special handling
+      if (fileType === "pdf") {
+        try {
+          // First, notify that we're processing a PDF
+          onFileSelected({
+            file,
+            text: "",
+            type: "pdf",
+            processing: true,
+          })
 
-        // Wait for text extraction to complete
-        const text = await textPromise
+          // Extract text from the PDF
+          const text = await extractTextFromFile(file)
 
-        // Update with the actual text
-        onFileSelected({
-          file,
-          text,
-          type: "pdf",
-          processing: false,
-        })
+          // Update with the actual text
+          onFileSelected({
+            file,
+            text,
+            type: "pdf",
+            processing: false,
+          })
+
+          toast({
+            title: "PDF processed",
+            description: `Successfully processed ${file.name}`,
+          })
+        } catch (pdfError) {
+          console.error("Error processing PDF:", pdfError)
+          setError(pdfError instanceof Error ? pdfError.message : "Failed to process PDF file")
+
+          // Run diagnostics on the PDF
+          try {
+            const diagnostics = await generatePDFDiagnostics(file)
+            console.log("PDF Diagnostics Report:\n", diagnostics)
+          } catch (diagError) {
+            console.error("Failed to generate PDF diagnostics:", diagError)
+          }
+
+          // Reset the file selection
+          onFileSelected(null)
+
+          toast({
+            title: "PDF processing failed",
+            description: pdfError instanceof Error ? pdfError.message : "Failed to process PDF file",
+            variant: "destructive",
+          })
+        } finally {
+          setIsProcessing(false)
+        }
       } else {
-        // For non-PDF files, just extract text normally
+        // For non-PDF files, process normally
         const text = await extractTextFromFile(file)
 
         // Set the selected file
         onFileSelected({
           file,
           text,
-          type: file.name.split(".").pop()?.toLowerCase() || "",
+          type: fileType,
         })
-      }
 
-      toast({
-        title: "Resume uploaded",
-        description: `Successfully processed ${file.name}`,
-      })
+        toast({
+          title: "Resume uploaded",
+          description: `Successfully processed ${file.name}`,
+        })
+
+        setIsProcessing(false)
+      }
     } catch (error) {
       console.error("Error processing file:", error)
       setError(error instanceof Error ? error.message : "Failed to process file")
+
+      // Reset the file selection
+      onFileSelected(null)
 
       toast({
         title: "Upload failed",
         description: error instanceof Error ? error.message : "Failed to process file",
         variant: "destructive",
       })
-    } finally {
-      if (error && file.name.toLowerCase().endsWith(".pdf")) {
-        // If we had an error with a PDF file, run diagnostics
-        try {
-          const diagnostics = await generatePDFDiagnostics(file)
-          console.log("PDF Diagnostics Report:\n", diagnostics)
 
-          // Add diagnostics information to the error message
-          const enhancedError = `PDF processing failed. Diagnostics available in console.`
-          setError(enhancedError)
-        } catch (diagError) {
-          console.error("Failed to generate PDF diagnostics:", diagError)
-        }
-      }
       setIsProcessing(false)
     }
   }
 
   const handleRemoveFile = () => {
-    // FIX: Set to null instead of using sample resume
-    onFileSelected(null)
-
     // Reset the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -142,6 +170,12 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
 
     // Clear any errors
     setError(null)
+
+    // Reset the upload key to force re-render of file input
+    setUploadKey((prev) => prev + 1)
+
+    // Notify parent component
+    onFileSelected(null)
   }
 
   const handleUseSample = () => {
@@ -201,19 +235,20 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
             </p>
             <div className="flex flex-col items-center gap-2">
               <Label
-                htmlFor="resume-upload"
+                htmlFor={`resume-upload-${uploadKey}`}
                 className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 Browse Files
               </Label>
               <Input
-                id="resume-upload"
+                id={`resume-upload-${uploadKey}`}
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.docx,.txt"
                 className="hidden"
                 onChange={handleFileChange}
                 disabled={isProcessing}
+                key={uploadKey}
               />
               {isProcessing && <p className="text-sm text-slate-500">Processing file...</p>}
             </div>

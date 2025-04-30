@@ -4,6 +4,8 @@
  * and generating optimized files in various formats
  */
 
+import { detectFileType } from "./file-type-detector"
+
 // Sample resume text for fallback
 const SAMPLE_RESUME = `JOHN DOE
 123 Main Street, City, State 12345
@@ -80,8 +82,9 @@ export async function extractTextFromFile(file: File): Promise<string> {
       throw new Error("File is too large. Please upload a file smaller than 10MB.")
     }
 
-    // Check file type
-    const fileType = file.name.split(".").pop()?.toLowerCase()
+    // Use our improved file type detection
+    const fileType = await detectFileType(file)
+    console.log(`Detected file type: ${fileType}`)
 
     if (fileType === "pdf") {
       // Since PDF parsing can be problematic, we'll use a client-side only approach
@@ -89,17 +92,17 @@ export async function extractTextFromFile(file: File): Promise<string> {
       if (typeof window !== "undefined") {
         try {
           // Dynamically import our enhanced PDF parser
-          const { extractTextFromPDFEnhanced } = await import("./parsers/enhanced-pdf-parser")
-          const text = await extractTextFromPDFEnhanced(file)
+          const { extractTextFromPDF } = await import("./parsers/pdf-parser")
+          const text = await extractTextFromPDF(file)
 
-          // FIX: Don't validate PDF length here, just return the text
-          // PDF validation will happen in the resume optimizer component
+          // Don't validate PDF content length here - just return what we got
           if (text) {
+            console.log(`PDF extraction successful, got ${text.length} characters`)
             return text
           }
         } catch (error) {
-          console.error("Enhanced PDF parser failed:", error)
-          // Fall through to use the sample resume if enhanced parser fails
+          console.error("PDF parser failed:", error)
+          // Fall through to use the sample resume if parser fails
         }
       } else {
         throw new Error("PDF parsing can only be performed in browser environments")
@@ -274,29 +277,31 @@ export function validateResumeFile(file: File): { valid: boolean; error?: string
     return { valid: false, error: "File is too large. Please upload a file smaller than 10MB." }
   }
 
-  // Check file type
-  const fileType = file.name.split(".").pop()?.toLowerCase()
-
-  if (!fileType || !["pdf", "docx", "txt"].includes(fileType)) {
-    return {
-      valid: false,
-      error: `Unsupported file format: ${fileType || "unknown"}. Please upload a PDF, DOCX, or TXT file.`,
-    }
-  }
-
   return { valid: true }
 }
 
 /**
  * Check if the extracted text is valid resume content
- * FIX: Made this more lenient for PDFs which might have formatting issues
  */
 export function isValidResumeContent(text: string, fileType?: string): boolean {
-  // FIX: Different validation for PDFs vs other formats
-  const minLength = fileType === "pdf" ? 50 : 100
+  // Different minimum length based on file type
+  const minLength = fileType === "pdf" ? 20 : 50
 
   if (!text || text.length < minLength) {
     return false
+  }
+
+  // For very short texts, be more lenient with PDFs
+  if (text.length < 100 && fileType === "pdf") {
+    // If it's a PDF with short text, check for common resume keywords
+    const keywords = ["resume", "cv", "experience", "education", "skills", "work", "job", "name", "email", "phone"]
+    const lowerText = text.toLowerCase()
+
+    for (const keyword of keywords) {
+      if (lowerText.includes(keyword)) {
+        return true
+      }
+    }
   }
 
   // Check for common resume sections
@@ -310,6 +315,13 @@ export function isValidResumeContent(text: string, fileType?: string): boolean {
     "employment",
     "projects",
     "certifications",
+    "resume",
+    "cv",
+    "profile",
+    "contact",
+    "references",
+    "achievements",
+    "qualifications",
   ]
 
   let sectionCount = 0
@@ -321,7 +333,7 @@ export function isValidResumeContent(text: string, fileType?: string): boolean {
     }
   }
 
-  // FIX: More lenient for PDFs - only require 1 section
+  // Different required section count based on file type
   const requiredSections = fileType === "pdf" ? 1 : 2
   return sectionCount >= requiredSections
 }

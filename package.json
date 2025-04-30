@@ -69,9 +69,9 @@
     "pdfjs-dist": "latest",
     "mammoth": "latest",
     "jszip": "latest",
+    "uuid": "latest",
     "jspdf": "latest",
-    "docx": "latest",
-    "uuid": "latest"
+    "docx": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
