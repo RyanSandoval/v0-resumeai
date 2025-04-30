@@ -6,7 +6,8 @@
 
 import { Document, Packer, Paragraph, TextRun } from "docx"
 import { jsPDF } from "jspdf"
-import { extractTextFromDOCX, isValidResumeContent } from "./docx-utils"
+import { extractTextFromPDF } from "./parsers/pdf-parser"
+import { extractTextFromDOCX } from "./parsers/docx-parser"
 
 // Sample resume text for fallback
 const SAMPLE_RESUME = `JOHN DOE
@@ -84,16 +85,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
     if (fileType === "pdf") {
       return await extractTextFromPDF(file)
     } else if (fileType === "docx") {
-      // Use our specialized DOCX extraction
-      const text = await extractTextFromDOCX(file)
-
-      // Validate the extracted text
-      if (isValidResumeContent(text)) {
-        return text
-      } else {
-        console.log("Extracted DOCX content doesn't look like a resume, using sample")
-        return SAMPLE_RESUME
-      }
+      return await extractTextFromDOCX(file)
     } else if (fileType === "txt") {
       return await extractTextFromTXT(file)
     } else {
@@ -108,87 +100,6 @@ export async function extractTextFromFile(file: File): Promise<string> {
     }
 
     throw new Error("Failed to process file. Please try a different file or format.")
-  }
-}
-
-/**
- * Extract text from PDF using multiple approaches
- */
-async function extractTextFromPDF(file: File): Promise<string> {
-  try {
-    console.log("Attempting to extract text from PDF")
-
-    // First attempt: Try to read as text directly
-    const text = await file.text()
-
-    // Check if we got binary PDF content
-    if (text.includes("%PDF-")) {
-      console.log("File appears to be binary PDF. Using fallback extraction.")
-      return extractTextFromPDFFallback(file)
-    }
-
-    if (text && text.length > 100) {
-      console.log("Successfully extracted text from PDF using direct text reading")
-      return text
-    }
-
-    // If direct reading failed, try fallback
-    return extractTextFromPDFFallback(file)
-  } catch (error) {
-    console.error("Error in primary PDF extraction method:", error)
-    return extractTextFromPDFFallback(file)
-  }
-}
-
-/**
- * Fallback method for PDF text extraction
- */
-async function extractTextFromPDFFallback(file: File): Promise<string> {
-  try {
-    console.log("Using PDF fallback extraction method")
-
-    // Use FileReader with readAsArrayBuffer
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-
-      reader.onload = () => {
-        try {
-          // For a real implementation, we would use PDF.js here
-          // Since we can't use external libraries in this environment,
-          // we'll use a simplified approach
-
-          // Check if we can extract any text from the file
-          const fileReader = new FileReader()
-          fileReader.onload = () => {
-            const text = fileReader.result as string
-            if (text && text.length > 100 && !text.includes("%PDF-")) {
-              resolve(text)
-            } else {
-              console.log("Fallback extraction failed, using sample resume")
-              resolve(SAMPLE_RESUME)
-            }
-          }
-          fileReader.onerror = () => {
-            console.error("FileReader error in fallback")
-            resolve(SAMPLE_RESUME)
-          }
-          fileReader.readAsText(file)
-        } catch (e) {
-          console.error("Error in PDF fallback processing:", e)
-          resolve(SAMPLE_RESUME)
-        }
-      }
-
-      reader.onerror = () => {
-        console.error("FileReader error")
-        resolve(SAMPLE_RESUME)
-      }
-
-      reader.readAsArrayBuffer(file)
-    })
-  } catch (error) {
-    console.error("All PDF extraction methods failed:", error)
-    return SAMPLE_RESUME
   }
 }
 
@@ -337,4 +248,38 @@ export function validateResumeFile(file: File): { valid: boolean; error?: string
   }
 
   return { valid: true }
+}
+
+/**
+ * Check if the extracted text is valid resume content
+ */
+export function isValidResumeContent(text: string): boolean {
+  if (!text || text.length < 100) {
+    return false
+  }
+
+  // Check for common resume sections
+  const resumeSections = [
+    "experience",
+    "education",
+    "skills",
+    "summary",
+    "objective",
+    "work history",
+    "employment",
+    "projects",
+    "certifications",
+  ]
+
+  let sectionCount = 0
+  const lowerText = text.toLowerCase()
+
+  for (const section of resumeSections) {
+    if (lowerText.includes(section)) {
+      sectionCount++
+    }
+  }
+
+  // If we found at least 2 resume sections, it's likely a resume
+  return sectionCount >= 2
 }

@@ -67,6 +67,8 @@
     "child_process": "latest",
     "@neondatabase/serverless": "latest",
     "uuid": "latest",
+    "pdfjs-dist": "latest",
+    "mammoth": "latest",
     "docx": "latest",
     "jspdf": "latest"
   },

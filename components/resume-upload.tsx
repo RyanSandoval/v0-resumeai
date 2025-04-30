@@ -3,14 +3,22 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { Upload, FileText, X, AlertCircle, FileWarning, Loader2, FileType } from "lucide-react"
+import { Upload, FileText, X, AlertCircle, FileWarning, Loader2, FileType, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { extractTextFromFile, validateResumeFile, getSampleResume } from "@/lib/file-utils"
+import { extractTextFromFile, validateResumeFile, getSampleResume, isValidResumeContent } from "@/lib/file-utils"
 import type { ResumeFile } from "@/components/resume-optimizer"
 import { Progress } from "@/components/ui/progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface ResumeUploadProps {
   onFileSelected: (file: ResumeFile | null) => void
@@ -24,6 +32,8 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingWarning, setProcessingWarning] = useState<string | null>(null)
   const [usingSampleResume, setUsingSampleResume] = useState(false)
+  const [showHelpDialog, setShowHelpDialog] = useState(false)
+  const [parsingDetails, setParsingDetails] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -66,6 +76,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
       setProcessingError(null)
       setProcessingWarning(null)
       setUsingSampleResume(false)
+      setParsingDetails(null)
       return
     }
 
@@ -85,27 +96,35 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
     setProcessingError(null)
     setProcessingWarning(null)
     setUsingSampleResume(false)
+    setParsingDetails(null)
     simulateProgress()
 
     try {
       toast({
         title: "Processing file",
-        description: "Extracting text from your resume...",
+        description: `Extracting text from your ${file.name.split(".").pop()?.toUpperCase()} resume...`,
       })
 
       console.log(`Processing ${file.name} (${file.type}, ${file.size} bytes)`)
 
-      // Get file extension
-      const fileExt = file.name.split(".").pop()?.toLowerCase() || ""
-
-      // Special handling for DOCX files
-      if (fileExt === "docx") {
-        console.log("DOCX file detected, using specialized processing")
+      // Set parsing details based on file type
+      const fileType = file.name.split(".").pop()?.toLowerCase()
+      if (fileType === "pdf") {
+        setParsingDetails("Using PDF.js to extract text from your PDF file...")
+      } else if (fileType === "docx") {
+        setParsingDetails("Using mammoth.js to extract text from your DOCX file...")
+      } else {
+        setParsingDetails("Processing your text file...")
       }
 
       const text = await extractTextFromFile(file)
 
       completeProgress()
+
+      // Check if the extracted text is valid resume content
+      if (!isValidResumeContent(text)) {
+        setProcessingWarning("The extracted text doesn't appear to be a resume. Please check the file and try again.")
+      }
 
       // Check if we're using the sample resume
       if (text === getSampleResume()) {
@@ -125,6 +144,9 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
           description: "The extracted text seems very short. The file might not be properly processed.",
           variant: "default",
         })
+      } else {
+        // Success case
+        setParsingDetails(`Successfully extracted ${text.length} characters from your resume.`)
       }
 
       onFileSelected({
@@ -133,7 +155,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         type: file.name.split(".").pop()?.toLowerCase() || "",
       })
 
-      if (!usingSampleResume) {
+      if (!usingSampleResume && text !== getSampleResume()) {
         toast({
           title: "File processed",
           description: "Your resume has been successfully processed.",
@@ -143,7 +165,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
       completeProgress()
       const errorMessage = error instanceof Error ? error.message : "Could not extract text from the file"
 
-      // Special handling for DOCX files
+      // Special handling for different file types
       if (file.name.endsWith(".docx")) {
         const docxError = "We're having trouble processing your DOCX file. Try converting it to PDF or TXT format."
         toast({
@@ -152,9 +174,15 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
           variant: "destructive",
         })
         setProcessingError(docxError)
-
-        // Offer to use sample resume
-        handleUseSampleResume(file)
+      } else if (file.name.endsWith(".pdf")) {
+        const pdfError =
+          "We're having trouble processing your PDF file. Try converting it to TXT format or ensure it contains selectable text."
+        toast({
+          title: "PDF Processing Error",
+          description: pdfError,
+          variant: "destructive",
+        })
+        setProcessingError(pdfError)
       } else {
         toast({
           title: "Error reading file",
@@ -215,6 +243,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
     setProcessingError(null)
     setProcessingWarning(null)
     setUsingSampleResume(false)
+    setParsingDetails(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -241,7 +270,13 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Upload Your Resume</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Upload Your Resume</h2>
+        <Button variant="ghost" size="sm" onClick={() => setShowHelpDialog(true)}>
+          <HelpCircle className="h-4 w-4 mr-1" />
+          <span>Help</span>
+        </Button>
+      </div>
 
       {processingError && (
         <Alert variant="destructive">
@@ -339,7 +374,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
             {isProcessing && (
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span>Processing file...</span>
+                  <span>{parsingDetails || "Processing file..."}</span>
                   <span>{Math.round(processingProgress)}%</span>
                 </div>
                 <Progress value={processingProgress} className="h-2" />
@@ -353,7 +388,9 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
                 {selectedFile.text.length > 500 && "..."}
               </div>
 
-              <div className="flex justify-end mt-4">
+              {parsingDetails && !isProcessing && <div className="mt-2 text-xs text-slate-500">{parsingDetails}</div>}
+
+              <div className="flex justify-end mt-4 gap-2">
                 <Button variant="outline" size="sm" onClick={retryFileProcessing} disabled={isProcessing}>
                   {isProcessing ? (
                     <>
@@ -370,13 +407,13 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         </Card>
       )}
 
-      {/* DOCX File Tips */}
+      {/* File Format Tips */}
       {selectedFile?.file.name.endsWith(".docx") && (
         <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
           <FileType className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <AlertTitle className="text-blue-600 dark:text-blue-400">DOCX File Tips</AlertTitle>
           <AlertDescription className="text-blue-600 dark:text-blue-400">
-            <p>If you're having issues with DOCX files:</p>
+            <p>We're using mammoth.js to extract text from your DOCX file. If you're having issues:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>Try saving your DOCX as a PDF or TXT file</li>
               <li>Ensure your DOCX file doesn't contain complex formatting or images</li>
@@ -385,6 +422,62 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
           </AlertDescription>
         </Alert>
       )}
+
+      {selectedFile?.file.name.endsWith(".pdf") && (
+        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+          <FileType className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-600 dark:text-blue-400">PDF File Tips</AlertTitle>
+          <AlertDescription className="text-blue-600 dark:text-blue-400">
+            <p>We're using PDF.js to extract text from your PDF file. If you're having issues:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li>Ensure your PDF contains selectable text (not just images)</li>
+              <li>Try saving as a TXT file if possible</li>
+              <li>Make sure the file isn't password protected or secured</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Help Dialog */}
+      <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resume Upload Help</DialogTitle>
+            <DialogDescription>Tips for successfully uploading your resume</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium mb-1">Supported File Formats</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>
+                  <strong>PDF:</strong> Processed using PDF.js for accurate text extraction
+                </li>
+                <li>
+                  <strong>DOCX:</strong> Processed using mammoth.js for reliable text extraction
+                </li>
+                <li>
+                  <strong>TXT:</strong> Most reliable but loses formatting
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-medium mb-1">Troubleshooting</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>If your file isn't processing, try converting it to TXT format</li>
+                <li>Ensure your PDF contains actual text, not just images of text</li>
+                <li>Remove any password protection or security settings</li>
+                <li>Try using the "Use Sample Resume" option to test the functionality</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setShowHelpDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
