@@ -1,21 +1,31 @@
 /**
  * PDF.js worker setup
- * This file initializes the PDF.js worker
+ * This file initializes the PDF.js worker with better error handling
  */
 
-import * as pdfjs from "pdfjs-dist"
+// Only initialize PDF.js in browser environments
+let pdfjs: typeof import("pdfjs-dist") | null = null
 
 // Initialize PDF.js worker
-// Use dynamic import for the worker to avoid build issues
-const setPdfWorker = async () => {
-  if (typeof window !== "undefined") {
-    // Only run in browser environment
-    const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.mjs")
-    pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
-  }
+if (typeof window !== "undefined") {
+  // Dynamically import PDF.js only on the client side
+  import("pdfjs-dist")
+    .then(async (module) => {
+      pdfjs = module
+
+      try {
+        // Load the worker
+        const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.mjs")
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
+        console.log("PDF.js worker initialized successfully")
+      } catch (err) {
+        console.error("Failed to load PDF.js worker:", err)
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load PDF.js:", err)
+    })
 }
 
-// Initialize the worker
-setPdfWorker().catch((err) => console.error("Error setting up PDF.js worker:", err))
-
+// Export the potentially initialized module
 export default pdfjs

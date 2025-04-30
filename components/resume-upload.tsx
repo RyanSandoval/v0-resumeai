@@ -12,6 +12,7 @@ import { AlertCircle, FileText, Upload, X } from "lucide-react"
 import { extractTextFromFile, getSampleResume, validateResumeFile } from "@/lib/file-utils"
 import { useToast } from "@/hooks/use-toast"
 import type { ResumeFile } from "@/components/resume-optimizer"
+import { generatePDFDiagnostics } from "@/lib/diagnostics/pdf-diagnostics"
 
 interface ResumeUploadProps {
   onFileSelected: (file: ResumeFile) => void
@@ -63,15 +64,41 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         return
       }
 
-      // Extract text from file
-      const text = await extractTextFromFile(file)
+      // Check if it's a PDF file, which requires special handling
+      if (file.name.toLowerCase().endsWith(".pdf")) {
+        // For PDF files, we'll use a separate state to track processing
+        // Extract text from non-PDF files
+        const textPromise = extractTextFromFile(file)
 
-      // Set the selected file
-      onFileSelected({
-        file,
-        text,
-        type: file.name.split(".").pop()?.toLowerCase() || "",
-      })
+        // We'll set up the UI first with empty text, then update when processing is complete
+        onFileSelected({
+          file,
+          text: "",
+          type: "pdf",
+          processing: true,
+        })
+
+        // Wait for text extraction to complete
+        const text = await textPromise
+
+        // Update with the actual text
+        onFileSelected({
+          file,
+          text,
+          type: "pdf",
+          processing: false,
+        })
+      } else {
+        // For non-PDF files, just extract text normally
+        const text = await extractTextFromFile(file)
+
+        // Set the selected file
+        onFileSelected({
+          file,
+          text,
+          type: file.name.split(".").pop()?.toLowerCase() || "",
+        })
+      }
 
       toast({
         title: "Resume uploaded",
@@ -87,6 +114,19 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
         variant: "destructive",
       })
     } finally {
+      if (error && file.name.toLowerCase().endsWith(".pdf")) {
+        // If we had an error with a PDF file, run diagnostics
+        try {
+          const diagnostics = await generatePDFDiagnostics(file)
+          console.log("PDF Diagnostics Report:\n", diagnostics)
+
+          // Add diagnostics information to the error message
+          const enhancedError = `PDF processing failed. Diagnostics available in console.`
+          setError(enhancedError)
+        } catch (diagError) {
+          console.error("Failed to generate PDF diagnostics:", diagError)
+        }
+      }
       setIsProcessing(false)
     }
   }

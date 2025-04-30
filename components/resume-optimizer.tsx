@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -19,6 +19,7 @@ export type ResumeFile = {
   file: File
   text: string
   type: string
+  processing?: boolean
 }
 
 export type OptimizationResult = {
@@ -187,6 +188,15 @@ export function ResumeOptimizer() {
   const handleResultUpdate = (updatedResult: OptimizationResult) => {
     setResult(updatedResult)
   }
+
+  // Update the useEffect that processes the resume
+  useEffect(() => {
+    if (resumeFile && resumeFile.text && !resumeFile.processing) {
+      // Only process if we have text and it's not currently being processed
+      // setOriginalResume(resumeFile.text)
+      // analyzeResume(resumeFile.text)
+    }
+  }, [resumeFile])
 
   return (
     <div className="w-full mx-auto">
