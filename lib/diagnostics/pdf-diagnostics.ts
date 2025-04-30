@@ -1,176 +1,265 @@
 /**
- * PDF Diagnostics Tools
- * Advanced utilities for diagnosing PDF parsing issues
+ * PDF Diagnostics
+ * Tools for diagnosing issues with PDF files and the PDF.js library
  */
 
-// PDF Format validation
-export async function validatePDFFormat(file: File): Promise<{
-  valid: boolean
-  issues: string[]
+import { logParsingStep, logParsingError } from "./parsing-logger"
+
+/**
+ * Check if PDF.js is available and working
+ */
+export async function checkPDFJSAvailability(): Promise<{
+  available: boolean
+  version?: string
+  error?: string
 }> {
+  if (typeof window === "undefined") {
+    return { available: false, error: "Not in browser environment" }
+  }
+
   try {
-    const buffer = await file.slice(0, 1024).arrayBuffer() // Read first 1KB
-    const bytes = new Uint8Array(buffer)
-    const header = new TextDecoder().decode(bytes.slice(0, 8))
-
-    const issues: string[] = []
-
-    // Check PDF signature
-    if (!header.startsWith("%PDF-")) {
-      issues.push("Missing PDF signature: File does not start with %PDF-")
-    }
-
-    // Check PDF version
-    const versionMatch = header.match(/%PDF-(\d+\.\d+)/)
-    if (!versionMatch) {
-      issues.push("Invalid PDF version format")
-    } else {
-      const version = Number.parseFloat(versionMatch[1])
-      if (version < 1.0 || version > 2.0) {
-        issues.push(`Unusual PDF version: ${version}`)
-      }
-    }
-
-    // Check for binary content
-    let nullByteCount = 0
-    for (let i = 0; i < bytes.length; i++) {
-      if (bytes[i] === 0) nullByteCount++
-    }
-
-    if (nullByteCount === 0) {
-      issues.push("No null bytes found: This may be a text file disguised as PDF")
-    }
-
-    // Check for common PDF structures
-    const content = new TextDecoder().decode(bytes)
-    if (!content.includes("obj") || !content.includes("endobj")) {
-      issues.push("Missing basic PDF structure markers (obj/endobj)")
-    }
-
+    const pdfjs = await import("pdfjs-dist")
     return {
-      valid: issues.length === 0,
-      issues,
+      available: true,
+      version: pdfjs.version || "unknown",
     }
   } catch (error) {
     return {
-      valid: false,
-      issues: [`Error validating PDF format: ${error instanceof Error ? error.message : "Unknown error"}`],
+      available: false,
+      error: error instanceof Error ? error.message : "Unknown error importing PDF.js",
     }
   }
 }
 
-// Get browser PDF support information
-export function getBrowserPDFSupport(): {
-  supported: boolean
-  features: Record<string, boolean>
-} {
+/**
+ * Check if PDF.js worker is available and working
+ */
+export async function checkPDFJSWorker(): Promise<{
+  available: boolean
+  error?: string
+}> {
   if (typeof window === "undefined") {
+    return { available: false, error: "Not in browser environment" }
+  }
+
+  try {
+    const pdfjs = await import("pdfjs-dist")
+
+    if (!pdfjs.GlobalWorkerOptions) {
+      return { available: false, error: "GlobalWorkerOptions not available" }
+    }
+
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      return { available: false, error: "Worker source not set" }
+    }
+
+    return { available: true }
+  } catch (error) {
     return {
-      supported: false,
-      features: {
-        available: false,
-      },
+      available: false,
+      error: error instanceof Error ? error.message : "Unknown error checking worker",
     }
   }
+}
 
-  const features: Record<string, boolean> = {
-    // Core features
-    fileReader: "FileReader" in window,
-    blob: "Blob" in window,
-    arrayBuffer: "ArrayBuffer" in window,
+/**
+ * Analyze a PDF file to identify potential issues
+ */
+export async function analyzePDFFile(file: File): Promise<{
+  valid: boolean
+  fileInfo: {
+    name: string
+    size: number
+    type: string
+  }
+  issues: string[]
+  recommendations: string[]
+}> {
+  const issues: string[] = []
+  const recommendations: string[] = []
 
-    // PDF-related
-    pdfViewer: "navigator" in window && "pdfViewerEnabled" in navigator,
+  logParsingStep("PDF Diagnostics", `Analyzing file: ${file.name}`)
 
-    // Canvas (used by PDF.js)
-    canvas: "HTMLCanvasElement" in window,
-    canvasText: false,
-
-    // WebAssembly (used by some PDF.js features)
-    webAssembly: "WebAssembly" in window,
+  // Basic file checks
+  const fileInfo = {
+    name: file.name,
+    size: file.size,
+    type: file.type,
   }
 
-  // Test canvas text support
-  if (features.canvas) {
-    try {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      features.canvasText = ctx !== null && typeof ctx?.fillText === "function"
-    } catch (e) {
-      features.canvasText = false
+  // Check file size
+  if (file.size === 0) {
+    issues.push("File is empty (0 bytes)")
+    recommendations.push("Upload a valid PDF file")
+  } else if (file.size > 10 * 1024 * 1024) {
+    issues.push("File is very large (> 10MB)")
+    recommendations.push("Try compressing the PDF or using a smaller file")
+  }
+
+  // Check MIME type
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    issues.push(`File may not be a PDF (type: ${file.type || "unknown"})`)
+    recommendations.push("Ensure you're uploading a valid PDF file")
+  }
+
+  // Check PDF header
+  try {
+    const headerBytes = await readFileHeader(file, 1024)
+    const headerText = new TextDecoder().decode(headerBytes)
+
+    if (!headerText.startsWith("%PDF-")) {
+      issues.push("File does not have a valid PDF header")
+      recommendations.push("The file may be corrupted or not a valid PDF")
+    } else {
+      // Extract PDF version
+      const versionMatch = headerText.match(/%PDF-(\d+\.\d+)/)
+      if (versionMatch) {
+        const version = versionMatch[1]
+        logParsingStep("PDF Diagnostics", `PDF version: ${version}`)
+
+        if (Number.parseFloat(version) > 1.7) {
+          issues.push(`PDF version ${version} may not be fully supported`)
+          recommendations.push("Try converting to PDF 1.7 or earlier for better compatibility")
+        }
+      }
     }
+
+    // Check for encryption
+    if (headerText.includes("/Encrypt")) {
+      issues.push("PDF appears to be encrypted or password-protected")
+      recommendations.push("Use an unencrypted PDF file")
+    }
+  } catch (error) {
+    logParsingError("PDF Diagnostics", "Error reading file header", error)
+    issues.push("Could not read file header")
   }
 
-  // Calculate overall support
-  const criticalFeatures = ["fileReader", "blob", "arrayBuffer", "canvas"]
-  const supported = criticalFeatures.every((feature) => features[feature])
+  // Check browser compatibility
+  const browserInfo = getBrowserInfo()
+  logParsingStep("PDF Diagnostics", `Browser: ${browserInfo.name} ${browserInfo.version}`)
+
+  if (browserInfo.name === "Safari" && Number.parseFloat(browserInfo.version) < 14) {
+    issues.push("Older Safari versions have limited PDF.js support")
+    recommendations.push("Try using Chrome, Firefox, or a newer Safari version")
+  }
+
+  // Check PDF.js availability
+  const pdfJSStatus = await checkPDFJSAvailability()
+  if (!pdfJSStatus.available) {
+    issues.push(`PDF.js not available: ${pdfJSStatus.error}`)
+    recommendations.push("Try refreshing the page or using a different browser")
+  } else {
+    logParsingStep("PDF Diagnostics", `PDF.js version: ${pdfJSStatus.version}`)
+  }
+
+  // Check worker availability
+  const workerStatus = await checkPDFJSWorker()
+  if (!workerStatus.available) {
+    issues.push(`PDF.js worker not available: ${workerStatus.error}`)
+    recommendations.push("Try refreshing the page or check network connectivity")
+  }
 
   return {
-    supported,
-    features,
+    valid: issues.length === 0,
+    fileInfo,
+    issues,
+    recommendations,
   }
 }
 
-// Check for memory issues
-export function checkMemoryAvailability(): boolean {
-  if (typeof performance !== "undefined" && "memory" in performance) {
-    // @ts-ignore - Some browsers expose memory info
-    const memory = performance.memory
-    if (memory && memory.jsHeapSizeLimit) {
-      // If heap size is less than 100MB, we might have issues with large PDFs
-      return memory.jsHeapSizeLimit > 100 * 1024 * 1024
-    }
-  }
-
-  // If we can't check, assume it's OK
-  return true
+/**
+ * Read the first N bytes of a file
+ */
+async function readFileHeader(file: File, bytes: number): Promise<Uint8Array> {
+  const slice = file.slice(0, bytes)
+  const arrayBuffer = await slice.arrayBuffer()
+  return new Uint8Array(arrayBuffer)
 }
 
-// Generate diagnostic report for PDF processing
-export async function generatePDFDiagnostics(file: File): Promise<string> {
-  const formatValidation = await validatePDFFormat(file)
-  const browserSupport = getBrowserPDFSupport()
-  const memoryOK = checkMemoryAvailability()
+/**
+ * Get browser information
+ */
+function getBrowserInfo(): { name: string; version: string } {
+  if (typeof window === "undefined" || !navigator) {
+    return { name: "Unknown", version: "0" }
+  }
+
+  const userAgent = navigator.userAgent
+
+  if (userAgent.includes("Firefox/")) {
+    const version = userAgent.match(/Firefox\/(\d+\.\d+)/)
+    return { name: "Firefox", version: version ? version[1] : "Unknown" }
+  } else if (userAgent.includes("Chrome/")) {
+    const version = userAgent.match(/Chrome\/(\d+\.\d+)/)
+    return { name: "Chrome", version: version ? version[1] : "Unknown" }
+  } else if (userAgent.includes("Safari/") && !userAgent.includes("Chrome/")) {
+    const version = userAgent.match(/Version\/(\d+\.\d+)/)
+    return { name: "Safari", version: version ? version[1] : "Unknown" }
+  } else if (userAgent.includes("Edge/") || userAgent.includes("Edg/")) {
+    const version = userAgent.match(/Edge?\/(\d+\.\d+)/)
+    return { name: "Edge", version: version ? version[1] : "Unknown" }
+  }
+
+  return { name: "Unknown", version: "0" }
+}
+
+/**
+ * Generate a comprehensive PDF diagnostics report
+ */
+export async function generatePDFDiagnosticsReport(file: File): Promise<string> {
+  const analysis = await analyzePDFFile(file)
+  const pdfJSStatus = await checkPDFJSAvailability()
+  const workerStatus = await checkPDFJSWorker()
+  const browserInfo = getBrowserInfo()
 
   let report = "=== PDF DIAGNOSTICS REPORT ===\n\n"
 
   // File information
-  report += `File name: ${file.name}\n`
-  report += `File size: ${(file.size / 1024).toFixed(2)} KB\n`
-  report += `File type: ${file.type}\n\n`
+  report += `File: ${analysis.fileInfo.name}\n`
+  report += `Size: ${(analysis.fileInfo.size / 1024).toFixed(2)} KB\n`
+  report += `Type: ${analysis.fileInfo.type || "Unknown"}\n\n`
 
-  // Format validation
-  report += `PDF format valid: ${formatValidation.valid}\n`
-  if (formatValidation.issues.length > 0) {
-    report += "Issues found:\n"
-    formatValidation.issues.forEach((issue, i) => {
-      report += `  ${i + 1}. ${issue}\n`
+  // PDF.js status
+  report += "PDF.js Status:\n"
+  report += `- Available: ${pdfJSStatus.available ? "Yes" : "No"}\n`
+  if (pdfJSStatus.version) {
+    report += `- Version: ${pdfJSStatus.version}\n`
+  }
+  if (pdfJSStatus.error) {
+    report += `- Error: ${pdfJSStatus.error}\n`
+  }
+  report += `- Worker Available: ${workerStatus.available ? "Yes" : "No"}\n`
+  if (workerStatus.error) {
+    report += `- Worker Error: ${workerStatus.error}\n`
+  }
+  report += "\n"
+
+  // Browser information
+  report += "Browser Information:\n"
+  report += `- Browser: ${browserInfo.name} ${browserInfo.version}\n\n`
+
+  // Issues
+  report += "Issues Detected:\n"
+  if (analysis.issues.length === 0) {
+    report += "- No issues detected\n"
+  } else {
+    analysis.issues.forEach((issue, i) => {
+      report += `- ${i + 1}. ${issue}\n`
     })
-  } else {
-    report += "No format issues detected\n"
   }
   report += "\n"
 
-  // Browser support
-  report += `PDF support in browser: ${browserSupport.supported}\n`
-  report += "Feature detection:\n"
-  for (const [feature, supported] of Object.entries(browserSupport.features)) {
-    report += `  - ${feature}: ${supported}\n`
-  }
-  report += "\n"
-
-  // Memory
-  report += `Memory availability: ${memoryOK ? "Adequate" : "Limited"}\n\n`
-
-  // Environment
-  report += "Environment:\n"
-  if (typeof window !== "undefined") {
-    report += `  - User Agent: ${navigator.userAgent}\n`
-    report += `  - Platform: ${navigator.platform}\n`
-    report += `  - Language: ${navigator.language}\n`
+  // Recommendations
+  report += "Recommendations:\n"
+  if (analysis.recommendations.length === 0) {
+    report += "- No specific recommendations\n"
   } else {
-    report += "  Not running in browser\n"
+    analysis.recommendations.forEach((rec, i) => {
+      report += `- ${i + 1}. ${rec}\n`
+    })
   }
 
   return report
 }
+
+export const generatePDFDiagnostics = generatePDFDiagnosticsReport

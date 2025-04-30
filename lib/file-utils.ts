@@ -84,27 +84,10 @@ export async function extractTextFromFile(file: File): Promise<string> {
     const fileType = file.name.split(".").pop()?.toLowerCase()
 
     if (fileType === "pdf") {
-      // Since PDF parsing can be problematic, we'll use a client-side only approach
-      // First check if we're in a browser environment
-      if (typeof window !== "undefined") {
-        try {
-          // Dynamically import our enhanced PDF parser
-          const { extractTextFromPDFEnhanced } = await import("./parsers/enhanced-pdf-parser")
-          const text = await extractTextFromPDFEnhanced(file)
-          if (text && text.length > 100) {
-            return text
-          }
-        } catch (error) {
-          console.error("Enhanced PDF parser failed:", error)
-          // Fall through to use the sample resume if enhanced parser fails
-        }
-      } else {
-        throw new Error("PDF parsing can only be performed in browser environments")
-      }
-
-      // If we get here, either we're not in a browser or the parser failed
-      console.log("PDF parsing failed or not supported in this environment, using sample resume")
-      return getSampleResume()
+      // For PDF files, we'll use our robust parser
+      // But we'll let the PDFProcessor component handle this separately
+      // to avoid duplicate processing
+      return "PDF processing in progress..."
     } else if (fileType === "docx") {
       // Dynamically import the DOCX parser
       const { extractTextFromDOCX } = await import("./parsers/docx-parser")
