@@ -53,22 +53,32 @@ const TemplateContext = createContext<TemplateContextType | undefined>(undefined
 
 export function TemplateProvider({ children }: { children: React.ReactNode }) {
   const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplate>(RESUME_TEMPLATES[0])
+  const [isClient, setIsClient] = useState(false)
+
+  // Set isClient to true once component is mounted
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Load saved template preference from localStorage if available
   useEffect(() => {
-    const savedTemplateId = localStorage.getItem("selectedResumeTemplate")
-    if (savedTemplateId) {
-      const template = RESUME_TEMPLATES.find((t) => t.id === savedTemplateId)
-      if (template) {
-        setSelectedTemplate(template)
+    if (isClient) {
+      const savedTemplateId = localStorage.getItem("selectedResumeTemplate")
+      if (savedTemplateId) {
+        const template = RESUME_TEMPLATES.find((t) => t.id === savedTemplateId)
+        if (template) {
+          setSelectedTemplate(template)
+        }
       }
     }
-  }, [])
+  }, [isClient])
 
   // Save template preference to localStorage when changed
   useEffect(() => {
-    localStorage.setItem("selectedResumeTemplate", selectedTemplate.id)
-  }, [selectedTemplate])
+    if (isClient) {
+      localStorage.setItem("selectedResumeTemplate", selectedTemplate.id)
+    }
+  }, [selectedTemplate, isClient])
 
   return (
     <TemplateContext.Provider

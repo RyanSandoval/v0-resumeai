@@ -19,6 +19,10 @@ export function parseResumeText(text: string): ResumeData {
     sections: [],
   }
 
+  if (!text) {
+    return resumeData
+  }
+
   // Split the text into lines
   const lines = text.split("\n")
 
@@ -37,9 +41,9 @@ export function parseResumeText(text: string): ResumeData {
   }
 
   // Extract phone
-  const phoneMatch = contactInfoLines.join(" ").match(/(\+\d{1,3}[-.\s]?)?($$?\d{3}$$?[-.\s]?)?\d{3}[-.\s]?\d{4}/i)
+  const phoneMatch = contactInfoLines.join(" ").match(/(\+\d{1,3}[-.\s]?)?([\d\s()-]{10,})/i)
   if (phoneMatch) {
-    resumeData.phone = phoneMatch[0]
+    resumeData.phone = phoneMatch[0].trim()
   }
 
   // Extract LinkedIn

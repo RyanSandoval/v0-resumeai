@@ -44,15 +44,18 @@ export function TemplateSelector() {
             >
               <CardContent className="p-3 space-y-2">
                 <div className="relative aspect-[3/4] w-full overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
-                  <Image
-                    src={
-                      template.thumbnail ||
-                      `/placeholder.svg?height=300&width=225&query=resume+template+${template.name}`
-                    }
-                    alt={template.name}
-                    fill
-                    className="object-cover"
-                  />
+                  <div className="w-full h-full relative">
+                    <Image
+                      src={
+                        template.thumbnail ||
+                        `/placeholder.svg?height=300&width=225&query=resume+template+${template.name || "/placeholder.svg"}`
+                      }
+                      alt={template.name}
+                      fill
+                      sizes="200px"
+                      className="object-cover"
+                    />
+                  </div>
                   {selectedTemplate.id === template.id && (
                     <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
                       <Check className="h-4 w-4" />

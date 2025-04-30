@@ -1,3 +1,5 @@
+"use client"
+
 import { useTemplate } from "@/contexts/template-context"
 import { ProfessionalTemplate } from "./professional-template"
 import { ModernTemplate } from "./modern-template"
