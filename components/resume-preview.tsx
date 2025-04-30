@@ -296,7 +296,7 @@ export function ResumePreview({
           </div>
         </div>
 
-        <div className={`grid gap-6 ${showComparison ? "lg:grid-cols-[1fr_350px]" : ""}`}>
+        <div className={`grid gap-6 ${showComparison ? "lg:grid-cols-[2fr_1fr]" : ""}`}>
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
@@ -351,7 +351,7 @@ export function ResumePreview({
 
                 {!readOnly && (
                   <TabsContent value="edit" className="m-0">
-                    <div className="border-t p-0 bg-white dark:bg-slate-950">
+                    <div className="border-t p-0 bg-white dark:bg-slate-950 w-full">
                       <EditableResume
                         result={result}
                         jobDescription={jobDescription || ""}

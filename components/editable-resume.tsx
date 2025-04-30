@@ -575,7 +575,7 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[3fr_1fr] gap-4">
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-md">
           <h2 className="text-xl font-semibold">Edit Your Resume</h2>
@@ -606,11 +606,11 @@ export function EditableResume({ result, jobDescription, onUpdate }: EditableRes
                 ref={textareaRef}
                 value={editableText}
                 onChange={handleTextChange}
-                className="w-full min-h-[500px] p-4 font-mono text-sm border-0 focus:outline-none focus:ring-0 resize-none"
+                className="w-full min-h-[600px] p-4 font-mono text-sm border-0 focus:outline-none focus:ring-0 resize-none"
                 placeholder="Edit your resume here..."
               />
             ) : (
-              <div className="whitespace-pre-wrap min-h-[500px] max-h-[600px] overflow-y-auto font-mono text-sm">
+              <div className="whitespace-pre-wrap min-h-[600px] max-h-[700px] overflow-y-auto font-mono text-sm">
                 {editableText}
               </div>
             )}

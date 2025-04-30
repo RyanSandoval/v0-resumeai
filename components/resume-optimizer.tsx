@@ -189,7 +189,7 @@ export function ResumeOptimizer() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full mx-auto">
       {!result ? (
         <Card className="shadow-lg border-slate-200 dark:border-slate-700">
           <CardContent className="p-6">

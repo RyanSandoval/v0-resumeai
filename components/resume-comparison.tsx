@@ -16,7 +16,7 @@ export function ResumeComparison({ result, jobDescription }: ResumeComparisonPro
   const [activeTab, setActiveTab] = useState<"keywords" | "sections">("keywords")
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardContent className="p-4">
         <h3 className="font-semibold mb-3">Resume Analysis</h3>
 

@@ -3,7 +3,7 @@ import { ResumeOptimizer } from "@/components/resume-optimizer"
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <div className="container mx-auto px-4 py-6 md:py-12">
+      <div className="container-fluid w-full px-6 py-6 md:py-12">
         <div className="mb-8 md:mb-12 text-center">
           <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-slate-50 mb-4">
             AI Resume Optimizer

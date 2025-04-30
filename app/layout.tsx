@@ -27,7 +27,7 @@ export default function RootLayout({
         <SessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-              <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+              <div className="container mx-auto px-6 py-3 flex justify-between items-center">
                 <a href="/" className="font-bold text-xl text-slate-900 dark:text-white">
                   AI Resume Optimizer
                 </a>
