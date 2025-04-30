@@ -1,19 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { signIn } from "next-auth/react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { FaGoogle } from "react-icons/fa"
-import { FaXTwitter } from "react-icons/fa6"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Loader2, AlertCircle, Mail, Twitter } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
+import { useSession } from "@/components/auth/session-provider"
 
 export default function SignIn() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { update } = useSession()
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({
     google: false,
     twitter: false,
@@ -31,37 +30,7 @@ export default function SignIn() {
     // Check for error in query parameters
     const errorParam = searchParams.get("error")
     if (errorParam) {
-      switch (errorParam) {
-        case "OAuthSignin":
-          setError("An error occurred while trying to sign in with the provider.")
-          break
-        case "OAuthCallback":
-          setError("An error occurred during the authentication callback.")
-          break
-        case "OAuthCreateAccount":
-          setError("There was a problem creating your account.")
-          break
-        case "EmailCreateAccount":
-          setError("There was a problem creating your account.")
-          break
-        case "Callback":
-          setError("There was a problem with the authentication callback.")
-          break
-        case "OAuthAccountNotLinked":
-          setError("This email is already associated with another account.")
-          break
-        case "EmailSignin":
-          setError("The email could not be sent or is invalid.")
-          break
-        case "CredentialsSignin":
-          setError("The credentials you provided are invalid.")
-          break
-        case "SessionRequired":
-          setError("You must be signed in to access this page.")
-          break
-        default:
-          setError("An unknown error occurred during authentication.")
-      }
+      setError("An authentication error occurred.")
     }
   }, [searchParams])
 
@@ -70,16 +39,18 @@ export default function SignIn() {
       setIsLoading((prev) => ({ ...prev, [provider]: true }))
       setError(null)
 
-      const result = await signIn(provider, {
-        callbackUrl,
-        redirect: false,
+      // Mock sign in
+      update({
+        user: {
+          name: "Demo User",
+          email: "demo@example.com",
+          image: null,
+          id: "demo-user-id",
+        },
       })
 
-      if (result?.error) {
-        setError(result.error)
-      } else if (result?.url) {
-        router.push(result.url)
-      }
+      // Redirect to callback URL or home
+      router.push(callbackUrl || "/")
     } catch (err) {
       setError("An unexpected error occurred. Please try again.")
       console.error("Sign in error:", err)
@@ -112,7 +83,7 @@ export default function SignIn() {
             {isLoading.google ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <FaGoogle className="mr-2 h-4 w-4 text-red-500" />
+              <Mail className="mr-2 h-4 w-4 text-red-500" />
             )}
             Continue with Google
           </Button>
@@ -126,7 +97,7 @@ export default function SignIn() {
             {isLoading.twitter ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <FaXTwitter className="mr-2 h-4 w-4" />
+              <Twitter className="mr-2 h-4 w-4" />
             )}
             Continue with X
           </Button>

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,9 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, LogOut, User, UserCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useSession } from "@/components/auth/session-provider"
 
 export function AuthButton() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -27,7 +27,9 @@ export function AuthButton() {
   const handleSignOut = async () => {
     try {
       setIsLoading(true)
-      await signOut({ callbackUrl: "/" })
+      // Mock sign out
+      update(null)
+      router.push("/")
     } catch (error) {
       console.error("Error signing out:", error)
     } finally {

@@ -1,9 +1,11 @@
-import { redirect } from "next/navigation"
-import { ResumePreview } from "@/components/resume-preview"
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import * as db from "@/lib/db"
+import { useSession } from "@/components/auth/session-provider"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 interface ResumePageProps {
   params: {
@@ -11,102 +13,49 @@ interface ResumePageProps {
   }
 }
 
-export default async function ResumePage({ params }: ResumePageProps) {
-  // Import and use getServerSession dynamically
-  const { getServerSession } = await import("next-auth/next")
-  const { authOptions } = await import("@/app/api/auth/[...nextauth]/route")
+export default function ResumePage({ params }: ResumePageProps) {
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user) {
-    redirect("/auth/signin")
-  }
-
-  try {
-    // Initialize database if needed
-    await db.initDatabase()
-
-    // Get the resume
-    const resume = await db.getResumeById(params.id, session.user.id)
-
-    if (!resume) {
-      return (
-        <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-          <div className="container mx-auto px-4 py-6 md:py-12">
-            <Button variant="outline" size="sm" asChild className="mb-6">
-              <Link href="/dashboard">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Link>
-            </Button>
-
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 text-red-700 dark:text-red-400">
-              Resume not found.
-            </div>
-          </div>
-        </main>
-      )
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (status !== "loading" && !session) {
+      router.push("/auth/signin")
     }
+  }, [session, status, router])
 
-    // Create a dummy resumeFile object to satisfy the ResumePreview component
-    const resumeFile = {
-      file: new File([""], "resume.txt", { type: "text/plain" }),
-      text: resume.original_text,
-      type: "txt",
-    }
-
+  if (status === "loading") {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <div className="container mx-auto px-4 py-6 md:py-12">
-          <div className="mb-6 flex items-center justify-between">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Link>
-            </Button>
-            <h1 className="text-2xl font-bold">{resume.title}</h1>
+          <div className="flex justify-center items-center h-64">
+            <p className="text-lg">Loading...</p>
           </div>
-
-          <ResumePreview
-            result={{
-              originalText: resume.original_text,
-              optimizedText: resume.optimized_text,
-              jobDescription: resume.job_description,
-              changes: [],
-              keywords: {
-                matched: resume.keywords,
-                missing: [],
-              },
-              score: resume.score,
-            }}
-            resumeFile={resumeFile}
-            jobDescription={resume.job_description}
-            onBack={() => {}}
-            onUpdate={() => {}}
-            readOnly={true}
-          />
         </div>
       </main>
     )
-  } catch (error) {
-    console.error("Resume page error:", error)
+  }
 
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-        <div className="container mx-auto px-4 py-6 md:py-12">
-          <Button variant="outline" size="sm" asChild className="mb-6">
-            <Link href="/dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Link>
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="container mx-auto px-4 py-6 md:py-12">
+        <Button variant="outline" size="sm" asChild className="mb-6">
+          <Link href="/dashboard">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </Button>
+
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-6">
+          <h1 className="text-2xl font-bold mb-4">Resume Not Found</h1>
+          <p className="text-slate-600 dark:text-slate-300 mb-6">
+            The resume you're looking for could not be found or you don't have permission to view it.
+          </p>
+          <Button asChild>
+            <Link href="/">Return to Home</Link>
           </Button>
-
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 text-red-700 dark:text-red-400">
-            An error occurred while fetching this resume.
-          </div>
         </div>
-      </main>
-    )
-  }
+      </div>
+    </main>
+  )
 }

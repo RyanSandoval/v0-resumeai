@@ -1,6 +1,6 @@
-import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import TwitterProvider from "next-auth/providers/twitter"
+import { NextResponse } from "next/server"
 
 export const authOptions = {
   providers: [
@@ -40,5 +40,13 @@ export const authOptions = {
   debug: process.env.NODE_ENV === "development",
 }
 
-const handler = NextAuth(authOptions)
-export { handler as GET, handler as POST }
+// const handler = NextAuth(authOptions)
+// export { handler as GET, handler as POST }
+
+export function GET() {
+  return NextResponse.json({ status: "Not implemented" }, { status: 501 })
+}
+
+export function POST() {
+  return NextResponse.json({ status: "Not implemented" }, { status: 501 })
+}
