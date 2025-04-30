@@ -2,7 +2,11 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import TwitterProvider from "next-auth/providers/twitter"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "@/lib/prisma"
+import { PrismaClient } from "@prisma/client"
+
+// Create a new PrismaClient instance here instead of importing
+// This ensures we don't try to import a non-existent module during build
+const prisma = new PrismaClient()
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),

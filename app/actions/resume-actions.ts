@@ -1,9 +1,12 @@
 "use server"
 
 import { getServerSession } from "next-auth/next"
-import { prisma } from "@/lib/prisma"
+import { PrismaClient } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import type { OptimizationResult } from "@/components/resume-optimizer"
+
+// Create a new PrismaClient instance directly
+const prisma = new PrismaClient()
 
 // Helper function to get the session
 async function getSession() {

@@ -67,8 +67,8 @@
     "docx": "latest",
     "jspdf": "latest",
     "react-icons": "latest",
-    "@auth/prisma-adapter": "latest",
-    "child_process": "latest"
+    "child_process": "latest",
+    "@auth/prisma-adapter": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
