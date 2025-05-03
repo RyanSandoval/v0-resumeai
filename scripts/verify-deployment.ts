@@ -14,6 +14,12 @@ async function main() {
     const healthData = await healthRes.json()
     console.log("Health check response:", healthData)
 
+    // Check database connection
+    console.log("Checking database connection...")
+    const dbRes = await fetch(`${baseUrl}/api/db-test`)
+    const dbData = await dbRes.json()
+    console.log("Database check response:", dbData)
+
     // Check if NextAuth endpoints are accessible
     console.log("Checking NextAuth endpoints...")
     const authRes = await fetch(`${baseUrl}/api/auth/providers`)

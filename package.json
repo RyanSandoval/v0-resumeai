@@ -77,9 +77,11 @@
     "@react-email/components": "latest",
     "@react-email/render": "latest",
     "react-beautiful-dnd": "latest",
-    "@auth/prisma-adapter": "latest",
     "util": "latest",
-    "node-fetch": "latest"
+    "fs": "latest",
+    "path": "latest",
+    "node-fetch": "latest",
+    "@auth/prisma-adapter": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
