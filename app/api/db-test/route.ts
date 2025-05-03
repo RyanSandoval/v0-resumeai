@@ -1,29 +1,20 @@
 import { NextResponse } from "next/server"
 import { PrismaClient } from "@prisma/client"
 
-// Initialize Prisma Client
-const prisma = new PrismaClient()
-
 export async function GET() {
+  const prisma = new PrismaClient()
+
   try {
     // Test database connection
     await prisma.$connect()
 
     // Get database information
-    const databaseInfo = await prisma.$queryRaw`SELECT version()`
-
-    // Get table count
-    const tableCount = await prisma.$queryRaw`
-      SELECT COUNT(*) as count 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-    `
+    const result = await prisma.$queryRaw`SELECT current_database(), current_schema(), version()`
 
     return NextResponse.json({
       status: "ok",
-      message: "Database connection successful",
-      databaseInfo,
-      tableCount,
+      connection: "successful",
+      databaseInfo: result,
     })
   } catch (error) {
     console.error("Database connection error:", error)
@@ -31,8 +22,8 @@ export async function GET() {
     return NextResponse.json(
       {
         status: "error",
-        message: "Database connection failed",
-        error: error instanceof Error ? error.message : String(error),
+        connection: "failed",
+        error: error.message,
       },
       { status: 500 },
     )
