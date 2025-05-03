@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -48,13 +45,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-  resumes      Resume[]
-  subscription Subscription?
-  featureUsage FeatureUsage[]
-  baselineResume BaselineResume?
-  jobApplications JobApplication[]
+  accounts Account[]
+  sessions Session[]
+  resumes  Resume[]
+  // Other relations...
 }
 
 model VerificationToken {
@@ -81,80 +75,4 @@ model Resume {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model BaselineResume {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  resumeText   String   @db.Text
-  fileType     String   @default("txt")
-  fileName     String   @default("baseline-resume")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model JobApplication {
-  id             String   @id @default(cuid())
-  userId         String
-  title          String
-  company        String?
-  jobDescription String?  @db.Text
-  jobUrl         String?
-  status         String   @default("want_to_apply") // want_to_apply, applied, interview, archived
-  resumeId       String?
-  notes          String?  @db.Text
-  appliedDate    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Subscription {
-  id                 String    @id @default(cuid())
-  userId             String    @unique
-  stripeCustomerId   String?   @unique
-  stripeSubscriptionId String?
-  stripePriceId      String?
-  stripeCurrentPeriodEnd DateTime?
-  plan               String    @default("free") // free, basic, premium
-  status             String    @default("active") // active, canceled, past_due
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model FeatureUsage {
-  id        String   @id @default(cuid())
-  userId    String
-  feature   String   // resume_optimizations, templates, etc.
-  used      Int      @default(0)
-  resetAt   DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, feature])
-}
-
-model AnalyticsEvent {
-  id        String   @id @default(cuid())
-  event     String
-  userId    String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-}
-
-model SubscriptionEvent {
-  id                String   @id @default(cuid())
-  userId            String?
-  stripeCustomerId  String?
-  eventType         String
-  plan              String?
-  amount            Float?
-  currency          String?
-  status            String?
-  createdAt         DateTime @default(now())
-}
+// Other models...

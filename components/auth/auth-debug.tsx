@@ -34,6 +34,12 @@ export function AuthDebug() {
         <div className="mb-2">
           <strong>Status:</strong> {status}
         </div>
+        <div className="mb-2">
+          <strong>Environment:</strong> {process.env.NODE_ENV}
+        </div>
+        <div className="mb-2">
+          <strong>NEXTAUTH_URL:</strong> {process.env.NEXTAUTH_URL || "Not set"}
+        </div>
         {session ? (
           <pre className="bg-slate-100 dark:bg-slate-800 p-2 rounded overflow-auto">
             {JSON.stringify(session, null, 2)}

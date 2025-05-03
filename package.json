@@ -61,9 +61,9 @@
     "@auth/core": "latest",
     "nodemailer": "latest",
     "prisma": "latest",
+    "@prisma/client": "latest",
     "cheerio": "latest",
     "next-auth": "latest",
-    "@prisma/client": "latest",
     "child_process": "latest",
     "@neondatabase/serverless": "latest",
     "pdfjs-dist": "latest",
@@ -76,7 +76,10 @@
     "stripe": "latest",
     "@react-email/components": "latest",
     "@react-email/render": "latest",
-    "react-beautiful-dnd": "latest"
+    "react-beautiful-dnd": "latest",
+    "@auth/prisma-adapter": "latest",
+    "util": "latest",
+    "node-fetch": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
