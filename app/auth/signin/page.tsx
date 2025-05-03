@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, AlertCircle, Mail, Twitter } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
-import { useSession } from "@/components/auth/session-provider"
+import { useSession } from "next-auth/react"
 
 export default function SignIn() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { update } = useSession()
+  const { status } = useSession()
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({
     google: false,
     twitter: false,
@@ -32,25 +33,29 @@ export default function SignIn() {
     if (errorParam) {
       setError("An authentication error occurred.")
     }
-  }, [searchParams])
+
+    // If already signed in, redirect to callback URL
+    if (status === "authenticated") {
+      router.push(callbackUrl || "/")
+    }
+  }, [searchParams, status, router, callbackUrl])
 
   const handleSignIn = async (provider: string) => {
     try {
       setIsLoading((prev) => ({ ...prev, [provider]: true }))
       setError(null)
 
-      // Mock sign in
-      update({
-        user: {
-          name: "Demo User",
-          email: "demo@example.com",
-          image: null,
-          id: "demo-user-id",
-        },
+      // Use NextAuth signIn
+      const result = await signIn(provider, {
+        callbackUrl,
+        redirect: false,
       })
 
-      // Redirect to callback URL or home
-      router.push(callbackUrl || "/")
+      if (result?.error) {
+        setError("Authentication failed. Please try again.")
+      }
+
+      // Redirect will be handled by the useEffect when session status changes
     } catch (err) {
       setError("An unexpected error occurred. Please try again.")
       console.error("Sign in error:", err)

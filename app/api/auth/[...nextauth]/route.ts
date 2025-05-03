@@ -1,6 +1,7 @@
+import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import TwitterProvider from "next-auth/providers/twitter"
-import { NextResponse } from "next/server"
+import { createUser } from "@/lib/db"
 
 export const authOptions = {
   providers: [
@@ -31,6 +32,18 @@ export const authOptions = {
       }
       return session
     },
+    async signIn({ user }) {
+      // Create or update user in database when they sign in
+      if (user.id && user.name && user.email) {
+        await createUser({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image || null,
+        })
+      }
+      return true
+    },
   },
   pages: {
     signIn: "/auth/signin",
@@ -40,13 +53,5 @@ export const authOptions = {
   debug: process.env.NODE_ENV === "development",
 }
 
-// const handler = NextAuth(authOptions)
-// export { handler as GET, handler as POST }
-
-export function GET() {
-  return NextResponse.json({ status: "Not implemented" }, { status: 501 })
-}
-
-export function POST() {
-  return NextResponse.json({ status: "Not implemented" }, { status: 501 })
-}
+const handler = NextAuth(authOptions)
+export { handler as GET, handler as POST }
