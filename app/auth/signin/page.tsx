@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, AlertCircle, Mail, Twitter } from "lucide-react"
+import { Loader2, AlertCircle, Mail, Twitter, Linkedin } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
-import { useSession } from "next-auth/react"
 
 export default function SignIn() {
   const router = useRouter()
@@ -17,6 +16,7 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({
     google: false,
     twitter: false,
+    linkedin: false,
   })
   const [error, setError] = useState<string | null>(null)
   const [callbackUrl, setCallbackUrl] = useState("/")
@@ -31,7 +31,7 @@ export default function SignIn() {
     // Check for error in query parameters
     const errorParam = searchParams.get("error")
     if (errorParam) {
-      setError("An authentication error occurred.")
+      setError("An authentication error occurred. Please try again.")
     }
 
     // If already signed in, redirect to callback URL
@@ -45,20 +45,26 @@ export default function SignIn() {
       setIsLoading((prev) => ({ ...prev, [provider]: true }))
       setError(null)
 
+      console.log(`Signing in with ${provider}...`)
+
       // Use NextAuth signIn
       const result = await signIn(provider, {
         callbackUrl,
         redirect: false,
       })
 
-      if (result?.error) {
-        setError("Authentication failed. Please try again.")
-      }
+      console.log("Sign in result:", result)
 
-      // Redirect will be handled by the useEffect when session status changes
+      if (result?.error) {
+        setError(`Authentication failed: ${result.error}`)
+      } else if (result?.url) {
+        // Manual redirect if needed
+        router.push(result.url)
+      }
+      // Otherwise, redirect will be handled by the useEffect when session status changes
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.")
       console.error("Sign in error:", err)
+      setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading((prev) => ({ ...prev, [provider]: false }))
     }
@@ -83,7 +89,7 @@ export default function SignIn() {
             variant="outline"
             className="w-full flex items-center justify-center"
             onClick={() => handleSignIn("google")}
-            disabled={isLoading.google || isLoading.twitter}
+            disabled={Object.values(isLoading).some(Boolean)}
           >
             {isLoading.google ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -97,14 +103,28 @@ export default function SignIn() {
             variant="outline"
             className="w-full flex items-center justify-center"
             onClick={() => handleSignIn("twitter")}
-            disabled={isLoading.google || isLoading.twitter}
+            disabled={Object.values(isLoading).some(Boolean)}
           >
             {isLoading.twitter ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Twitter className="mr-2 h-4 w-4" />
+              <Twitter className="mr-2 h-4 w-4 text-blue-400" />
             )}
             Continue with X
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full flex items-center justify-center"
+            onClick={() => handleSignIn("linkedin")}
+            disabled={Object.values(isLoading).some(Boolean)}
+          >
+            {isLoading.linkedin ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Linkedin className="mr-2 h-4 w-4 text-blue-600" />
+            )}
+            Continue with LinkedIn
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

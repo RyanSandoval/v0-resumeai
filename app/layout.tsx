@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthButton } from "@/components/auth/auth-button"
 import { SessionProvider } from "@/components/auth/session-provider"
+import { AuthDebug } from "@/components/auth/auth-debug"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -35,6 +36,7 @@ export default function RootLayout({
               </div>
             </header>
             {children}
+            {process.env.NODE_ENV === "development" && <AuthDebug />}
             <Toaster />
           </ThemeProvider>
         </SessionProvider>
