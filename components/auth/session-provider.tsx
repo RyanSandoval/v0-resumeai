@@ -1,34 +1,12 @@
-"use client"
-
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+;('"use client')
 
-// Create a mock session context
-const SessionContext = createContext({
-  data: null,
-  status: "unauthenticated", // "authenticated" | "loading" | "unauthenticated"
-  update: (data: any) => {},
-})
-
-// Create a hook to use the session context
-export function useSession() {
-  return useContext(SessionContext)
-}
+import { SessionProvider as NextAuthSessionProvider, useSession as useNextAuthSession } from "next-auth/react"
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState({
-    data: null,
-    status: "unauthenticated",
-  })
+  return <NextAuthSessionProvider>{children}</NextAuthSessionProvider>
+}
 
-  return (
-    <SessionContext.Provider
-      value={{
-        ...session,
-        update: (data) => setSession({ data, status: data ? "authenticated" : "unauthenticated" }),
-      }}
-    >
-      {children}
-    </SessionContext.Provider>
-  )
+export function useSession() {
+  return useNextAuthSession()
 }

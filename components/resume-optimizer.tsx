@@ -10,10 +10,12 @@ import { KeywordsInput } from "@/components/keywords-input"
 import { OptimizationSettings } from "@/components/optimization-settings"
 import { ResumePreview } from "@/components/resume-preview"
 import { Progress } from "@/components/ui/progress"
-import { optimizeResume } from "@/lib/resume-optimizer"
+import { analyzeResumeWithAI } from "@/app/actions/optimize-resume"
+import { getBaselineResume } from "@/app/actions/baseline-resume-actions"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Loader2, AlertCircle, FileText } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { BaselineResumeManager } from "@/components/baseline-resume-manager"
 
 export type ResumeFile = {
   file: File
@@ -36,6 +38,8 @@ export type OptimizationResult = {
     missing: string[]
   }
   score: number
+  fitRating?: number
+  followupQuestions?: string[]
 }
 
 export type OptimizationOptions = {
@@ -47,6 +51,8 @@ export type OptimizationOptions = {
 
 export function ResumeOptimizer() {
   const [resumeFile, setResumeFile] = useState<ResumeFile | null>(null)
+  const [baselineResume, setBaselineResume] = useState<{ text: string; fileName: string } | null>(null)
+  const [useBaseline, setUseBaseline] = useState(false)
   const [jobDescription, setJobDescription] = useState("")
   const [keywords, setKeywords] = useState<string[]>([])
   const [inputMethod, setInputMethod] = useState<"jobDescription" | "keywords">("jobDescription")
@@ -60,29 +66,78 @@ export function ResumeOptimizer() {
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<OptimizationResult | null>(null)
   const [optimizationError, setOptimizationError] = useState<string | null>(null)
+  const [isLoadingBaseline, setIsLoadingBaseline] = useState(true)
   const { toast } = useToast()
 
-  // FIX: Handle file selection with null state
+  // Load baseline resume on component mount
+  useEffect(() => {
+    async function loadBaselineResume() {
+      try {
+        setIsLoadingBaseline(true)
+        const result = await getBaselineResume()
+        if (result.success && result.resume) {
+          setBaselineResume({
+            text: result.resume.resumeText,
+            fileName: result.resume.fileName,
+          })
+        }
+      } catch (error) {
+        console.error("Error loading baseline resume:", error)
+      } finally {
+        setIsLoadingBaseline(false)
+      }
+    }
+
+    loadBaselineResume()
+  }, [])
+
+  // Handle file selection with null state
   const handleFileSelected = (file: ResumeFile | null) => {
     setResumeFile(file)
     // Reset optimization if file is removed
     if (!file && result) {
       setResult(null)
     }
+    // If a file is selected, disable baseline
+    if (file) {
+      setUseBaseline(false)
+    }
   }
 
-  async function handleOptimize() {
-    if (!resumeFile) {
+  // Toggle using baseline resume
+  const handleToggleBaseline = () => {
+    if (!baselineResume) {
       toast({
-        title: "Resume required",
-        description: "Please upload your resume first.",
+        title: "No baseline resume",
+        description: "Please upload a baseline resume first.",
         variant: "destructive",
       })
       return
     }
 
+    setUseBaseline(!useBaseline)
+    if (!useBaseline) {
+      // Switching to baseline, clear uploaded file
+      setResumeFile(null)
+    }
+  }
+
+  async function handleOptimize() {
+    // Check if we have a resume to optimize
+    if (!resumeFile && !useBaseline) {
+      toast({
+        title: "Resume required",
+        description: "Please upload your resume or use your baseline resume.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Get the resume text to optimize
+    const resumeTextToOptimize = useBaseline ? baselineResume!.text : resumeFile!.text
+
     // Validate the resume text
-    if (!validateResumeText(resumeFile.text)) {
+    if (!validateResumeText(resumeTextToOptimize)) {
       return
     }
 
@@ -120,9 +175,8 @@ export function ResumeOptimizer() {
       }, 800)
 
       // Call the optimization function with AI integration
-      const optimizationResult = await optimizeResume({
-        resumeText: resumeFile.text,
-        resumeType: resumeFile.type,
+      const optimizationResult = await analyzeResumeWithAI({
+        resumeText: resumeTextToOptimize,
         jobDescription: inputMethod === "jobDescription" ? jobDescription : "",
         keywords: inputMethod === "keywords" ? keywords : [],
         options: optimizationOptions,
@@ -135,7 +189,7 @@ export function ResumeOptimizer() {
       if (optimizationResult.score > 0) {
         toast({
           title: "Optimization complete",
-          description: "Your resume has been optimized!",
+          description: `Your resume has been optimized! Fit rating: ${optimizationResult.fitRating}/10`,
         })
       } else {
         toast({
@@ -187,6 +241,7 @@ export function ResumeOptimizer() {
 
   const resetForm = () => {
     setResumeFile(null)
+    setUseBaseline(false)
     setJobDescription("")
     setKeywords([])
     setResult(null)
@@ -198,31 +253,63 @@ export function ResumeOptimizer() {
     setResult(updatedResult)
   }
 
-  // Update the useEffect that processes the resume
-  useEffect(() => {
-    if (resumeFile && resumeFile.text && !resumeFile.processing) {
-      // Only process if we have text and it's not currently being processed
-      // setOriginalResume(resumeFile.text)
-      // analyzeResume(resumeFile.text)
-    }
-  }, [resumeFile])
-
   return (
     <div className="w-full mx-auto">
       {!result ? (
-        <Card className="shadow-lg border-slate-200 dark:border-slate-700">
-          <CardContent className="p-6">
-            <div className="space-y-8">
-              <ClientFileProcessor onFileSelected={handleFileSelected} selectedFile={resumeFile} />
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="shadow-lg border-slate-200 dark:border-slate-700">
+              <CardContent className="p-6">
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold">Resume Selection</h2>
 
-              {optimizationError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Optimization Error</AlertTitle>
-                  <AlertDescription>{optimizationError}</AlertDescription>
-                </Alert>
-              )}
+                  {!isLoadingBaseline && baselineResume && (
+                    <div className="mb-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <input
+                          type="checkbox"
+                          id="use-baseline"
+                          checked={useBaseline}
+                          onChange={handleToggleBaseline}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor="use-baseline" className="text-sm font-medium">
+                          Use my baseline resume
+                        </label>
+                      </div>
 
+                      {useBaseline && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
+                          <FileText className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-medium">{baselineResume.fileName}</p>
+                            <p className="text-xs text-muted-foreground">{baselineResume.text.length} characters</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!useBaseline && (
+                    <ClientFileProcessor onFileSelected={handleFileSelected} selectedFile={resumeFile} />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <BaselineResumeManager />
+          </div>
+
+          {optimizationError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Optimization Error</AlertTitle>
+              <AlertDescription>{optimizationError}</AlertDescription>
+            </Alert>
+          )}
+
+          <Card className="shadow-lg border-slate-200 dark:border-slate-700">
+            <CardContent className="p-6">
               <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as any)}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="jobDescription">Job Description</TabsTrigger>
@@ -235,37 +322,54 @@ export function ResumeOptimizer() {
                   <KeywordsInput keywords={keywords} onChange={setKeywords} />
                 </TabsContent>
               </Tabs>
+            </CardContent>
+          </Card>
 
+          <Card className="shadow-lg border-slate-200 dark:border-slate-700">
+            <CardContent className="p-6">
               <OptimizationSettings options={optimizationOptions} onChange={setOptimizationOptions} />
+            </CardContent>
+          </Card>
 
-              {isOptimizing ? (
-                <div className="space-y-4">
-                  <Progress value={progress} className="h-2" />
-                  <div className="flex items-center justify-center gap-2 text-sm text-center text-slate-500">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <p>Optimizing your resume... {Math.round(progress)}%</p>
-                  </div>
-                  <p className="text-xs text-center text-slate-400">
-                    This may take up to a minute as we analyze your resume and the job description.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex justify-end space-x-4">
-                  <Button variant="outline" onClick={resetForm}>
-                    Reset
-                  </Button>
-                  <Button onClick={handleOptimize} disabled={!resumeFile}>
-                    Optimize Resume
-                  </Button>
-                </div>
-              )}
+          {isOptimizing ? (
+            <div className="space-y-4">
+              <Progress value={progress} className="h-2" />
+              <div className="flex items-center justify-center gap-2 text-sm text-center text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <p>Optimizing your resume... {Math.round(progress)}%</p>
+              </div>
+              <p className="text-xs text-center text-slate-400">
+                This may take up to a minute as we analyze your resume and the job description.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="flex justify-end space-x-4">
+              <Button variant="outline" onClick={resetForm}>
+                Reset
+              </Button>
+              <Button
+                onClick={handleOptimize}
+                disabled={
+                  (!resumeFile && !useBaseline) ||
+                  (inputMethod === "jobDescription" && !jobDescription) ||
+                  (inputMethod === "keywords" && keywords.length === 0)
+                }
+              >
+                Optimize Resume
+              </Button>
+            </div>
+          )}
+        </div>
       ) : (
         <ResumePreview
           result={result}
-          resumeFile={resumeFile!}
+          resumeFile={
+            resumeFile || {
+              file: new File([baselineResume!.text], baselineResume!.fileName, { type: "text/plain" }),
+              text: baselineResume!.text,
+              type: "txt",
+            }
+          }
           jobDescription={inputMethod === "jobDescription" ? jobDescription : undefined}
           onBack={() => setResult(null)}
           onUpdate={handleResultUpdate}
