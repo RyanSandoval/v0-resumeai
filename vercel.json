@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "npm ci --force && npm run build",
-  "installCommand": "echo 'Using npm ci with force flag'",
+  "buildCommand": "npm install --force && npm run build",
+  "installCommand": "echo 'Using npm install with force flag'",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
