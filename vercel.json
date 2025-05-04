@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "npm install --force && npm run build",
-  "installCommand": "echo 'Using npm install with force flag'",
+  "buildCommand": "node build-script.js",
+  "installCommand": "echo 'Using custom build script'",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
