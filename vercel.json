@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "node build-script.js",
-  "installCommand": "echo 'Using custom build script'",
+  "buildCommand": "npm install --omit=dev && npm run build",
+  "installCommand": "echo 'Using minimal dependencies'",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
