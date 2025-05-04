@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "yarn install --ignore-engines && yarn build",
-  "installCommand": "echo 'Using yarn instead of npm'",
+  "buildCommand": "npm ci --force && npm run build",
+  "installCommand": "echo 'Using npm ci with force flag'",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
