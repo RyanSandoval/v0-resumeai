@@ -14,11 +14,6 @@ const nextConfig = {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     DATABASE_URL: process.env.DATABASE_URL,
   },
-  // Increase build timeout for larger projects
-  onDemandEntries: {
-    maxInactiveAge: 60 * 60 * 1000,
-    pagesBufferLength: 5,
-  },
   eslint: {
     ignoreDuringBuilds: true,
   },
