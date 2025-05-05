@@ -1,7 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "npm install --omit=dev && npm run build",
-  "installCommand": "echo 'Using minimal dependencies'",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
