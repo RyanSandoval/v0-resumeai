@@ -1,12 +1,5 @@
 import type React from "react"
 import "./globals.css"
-import type { Metadata } from "next"
-
-export const metadata: Metadata = {
-  title: "Resume Optimizer",
-  description: "A tool to optimize your resume for job applications",
-    generator: 'v0.dev'
-}
 
 export default function RootLayout({
   children,
@@ -15,7 +8,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <title>Resume Optimizer</title>
+        <meta name="description" content="A tool to optimize your resume for job applications" />
+      </head>
       <body>{children}</body>
     </html>
   )
 }
+
+export const metadata = {
+      generator: 'v0.dev'
+    };

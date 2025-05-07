@@ -1,8 +1,19 @@
+import Header from "../components/header"
+import Footer from "../components/footer"
+import Button from "../components/button"
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold">Resume Optimizer</h1>
-      <p className="mt-4 text-xl">Welcome to the Resume Optimizer tool!</p>
-    </main>
+    <div style={{ padding: "20px" }}>
+      <Header />
+      <main>
+        <h2>Welcome to the Resume Optimizer</h2>
+        <p>A tool to help you optimize your resume for job applications.</p>
+        <div style={{ marginTop: "20px" }}>
+          <Button>Get Started</Button>
+        </div>
+      </main>
+      <Footer />
+    </div>
   )
 }
