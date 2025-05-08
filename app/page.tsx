@@ -1,8 +1,8 @@
 export default function Home() {
   return (
-    <div>
-      <h1>Resume Optimizer</h1>
-      <p>Welcome to the Resume Optimizer tool!</p>
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <h1 className="text-4xl font-bold">Resume Optimizer</h1>
+      <p className="mt-4 text-xl">Welcome to the Resume Optimizer tool!</p>
+    </main>
   )
 }
