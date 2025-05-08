@@ -11,6 +11,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  target: "serverless",
+  distDir: "build",
 }
 
 module.exports = nextConfig
