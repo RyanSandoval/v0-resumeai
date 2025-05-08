@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resume Optimizer</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- React CDN Links -->
+  <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 </head>
 <body>
   <header>
@@ -20,32 +25,13 @@
   </header>
 
   <main>
-    <section class="hero">
-      <h1>Optimize Your Resume</h1>
-      <p>Get more interviews with our AI-powered resume optimization tool</p>
-      <button id="getStarted" class="btn-primary">Get Started</button>
-    </section>
+    <!-- React will render in this div -->
+    <div id="hero-section"></div>
 
     <section class="features">
       <h2>Key Features</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h3>AI Analysis</h3>
-          <p>Our AI analyzes your resume against job descriptions to find the perfect match.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Keyword Optimization</h3>
-          <p>Identify and add missing keywords to increase your chances of getting past ATS systems.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Format Suggestions</h3>
-          <p>Get suggestions to improve the format and readability of your resume.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Real-time Feedback</h3>
-          <p>Receive instant feedback as you make changes to your resume.</p>
-        </div>
-      </div>
+      <!-- React will render in this div -->
+      <div id="feature-cards"></div>
     </section>
   </main>
 
@@ -53,6 +39,12 @@
     <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
   </footer>
 
+  <!-- Regular JavaScript -->
   <script src="app.js"></script>
+  
+  <!-- React Components -->
+  <script type="text/babel" src="components/Hero.js"></script>
+  <script type="text/babel" src="components/FeatureCard.js"></script>
+  <script type="text/babel" src="components/App.js"></script>
 </body>
 </html>

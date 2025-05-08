@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>About - Resume Optimizer</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- React CDN Links -->
+  <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 </head>
 <body>
   <header>
@@ -20,37 +25,19 @@
   </header>
 
   <main>
-    <section class="about">
-      <h1>About Resume Optimizer</h1>
-      <p>Resume Optimizer was founded with a simple mission: to help job seekers create the best possible resume for their target positions.</p>
-      <p>Our team of HR professionals and AI experts have combined their knowledge to create a tool that analyzes resumes against job descriptions and provides actionable feedback.</p>
-      
-      <h2>Our Team</h2>
-      <div class="team-grid">
-        <div class="team-member">
-          <h3>Jane Doe</h3>
-          <p>Founder & CEO</p>
-        </div>
-        <div class="team-member">
-          <h3>John Smith</h3>
-          <p>CTO</p>
-        </div>
-        <div class="team-member">
-          <h3>Emily Johnson</h3>
-          <p>Head of HR</p>
-        </div>
-        <div class="team-member">
-          <h3>Michael Brown</h3>
-          <p>AI Lead</p>
-        </div>
-      </div>
-    </section>
+    <!-- React will render in this div -->
+    <div id="about-section"></div>
   </main>
 
   <footer>
     <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
   </footer>
 
+  <!-- Regular JavaScript -->
   <script src="app.js"></script>
+  
+  <!-- React Components -->
+  <script type="text/babel" src="components/TeamMember.js"></script>
+  <script type="text/babel" src="components/AboutSection.js"></script>
 </body>
 </html>

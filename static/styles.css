@@ -272,6 +272,17 @@ main {
   color: #555;
 }
 
+/* Add styles for React components */
+.error {
+  border: 1px solid #ff3860 !important;
+}
+
+.error-message {
+  color: #ff3860;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
 /* Footer */
 footer {
   background-color: #333;
