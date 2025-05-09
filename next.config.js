@@ -11,6 +11,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   trailingSlash: true,
+  // Use this for static export
+  output: "export",
 }
 
 module.exports = nextConfig

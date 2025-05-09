@@ -5,22 +5,20 @@ export default function Header() {
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
-        <Link href="/">
-          <a>Resume Optimizer</a>
-        </Link>
+        <Link href="/">Resume Optimizer</Link>
       </div>
       <nav className={styles.nav}>
-        <Link href="/">
-          <a className={styles.navLink}>Home</a>
+        <Link href="/" className={styles.navLink}>
+          Home
         </Link>
-        <Link href="/features">
-          <a className={styles.navLink}>Features</a>
+        <Link href="/features" className={styles.navLink}>
+          Features
         </Link>
-        <Link href="/about">
-          <a className={styles.navLink}>About</a>
+        <Link href="/about" className={styles.navLink}>
+          About
         </Link>
-        <Link href="/contact">
-          <a className={styles.navLink}>Contact</a>
+        <Link href="/contact" className={styles.navLink}>
+          Contact
         </Link>
       </nav>
     </header>
