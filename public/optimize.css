@@ -1,0 +1,270 @@
+/* Optimizer Tool Styles */
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 992px) {
+  .tool-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 6px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+  border-color: #4a6cf7;
+  background-color: rgba(74, 108, 247, 0.05);
+}
+
+.upload-area.dragover {
+  border-color: #4a6cf7;
+  background-color: rgba(74, 108, 247, 0.1);
+}
+
+.upload-icon {
+  margin-bottom: 1rem;
+  color: #4a6cf7;
+}
+
+.upload-link {
+  color: #4a6cf7;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-types {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.5rem;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  margin-top: 1rem;
+}
+
+.file-preview {
+  margin-right: 1rem;
+  color: #4a6cf7;
+}
+
+.file-details {
+  flex: 1;
+}
+
+.file-name {
+  margin: 0;
+  font-weight: 500;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: #f44336;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0;
+  margin-top: 0.25rem;
+}
+
+textarea#jobDescription {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.keywords-input {
+  margin-top: 1rem;
+}
+
+#keywordInput {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.keyword-tag {
+  background-color: #e9efff;
+  color: #4a6cf7;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+}
+
+.keyword-tag .remove {
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-primary {
+  background-color: #4a6cf7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #3a5bd9;
+}
+
+.btn-large {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Results Styles */
+.initial-message {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  text-align: center;
+}
+
+.message-icon {
+  color: #4a6cf7;
+  margin-bottom: 1rem;
+}
+
+.score-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.score-circle {
+  width: 150px;
+  height: 150px;
+}
+
+.circular-chart {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+.circle-bg {
+  fill: none;
+  stroke: #eee;
+  stroke-width: 3.8;
+}
+
+.circle {
+  fill: none;
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  stroke: #4a6cf7;
+  animation: progress 1s ease-out forwards;
+}
+
+@keyframes progress {
+  0% {
+    stroke-dasharray: 0 100;
+  }
+}
+
+.percentage {
+  fill: #4a6cf7;
+  font-size: 0.5em;
+  text-anchor: middle;
+  font-weight: bold;
+}
+
+.keyword-analysis {
+  margin-top: 1rem;
+}
+
+.keyword-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.keyword-status {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.keyword-status.found {
+  background-color: #4caf50;
+}
+
+.keyword-status.missing {
+  background-color: #f44336;
+}
+
+.keyword-text {
+  flex: 1;
+}
+
+.keyword-text.missing {
+  color: #f44336;
+}
+
+.suggestions-list {
+  padding-left: 1.5rem;
+}
+
+.suggestions-list li {
+  margin-bottom: 0.75rem;
+}
+
+.resume-preview {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 1.5rem;
+  font-family: "Arial", sans-serif;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+}
