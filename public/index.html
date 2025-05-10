@@ -3,111 +3,171 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Resume Optimizer</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    header {
-      margin-bottom: 40px;
-    }
-    nav ul {
-      display: flex;
-      list-style: none;
-      padding: 0;
-    }
-    nav ul li {
-      margin-right: 20px;
-    }
-    nav ul li a {
-      text-decoration: none;
-      color: #0070f3;
-    }
-    .hero {
-      background-color: #f9f9f9;
-      padding: 60px 20px;
-      border-radius: 8px;
-      margin-bottom: 40px;
-      text-align: center;
-    }
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-bottom: 40px;
-    }
-    .feature {
-      background-color: #fff;
-      border: 1px solid #eaeaea;
-      border-radius: 8px;
-      padding: 20px;
-    }
-    .cta {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-    .button {
-      display: inline-block;
-      background-color: #0070f3;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 4px;
-      text-decoration: none;
-    }
-    footer {
-      text-align: center;
-      margin-top: 60px;
-      padding-top: 20px;
-      border-top: 1px solid #eaeaea;
-    }
-  </style>
+  <title>Resume Optimizer - Land More Interviews</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Optimize your resume for specific job descriptions and increase your interview chances with our AI-powered resume optimization tool.">
+  <meta name="keywords" content="resume optimizer, ATS optimization, job application, resume builder, keyword optimization">
+  
+  <!-- Open Graph / Social Media Meta Tags -->
+  <meta property="og:title" content="Resume Optimizer - Land More Interviews">
+  <meta property="og:description" content="Optimize your resume for specific job descriptions and increase your interview chances.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://resume-optimizer.vercel.app">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MEASUREMENT-ID"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-MEASUREMENT-ID');
+    // Replace G-MEASUREMENT-ID with your actual Google Analytics ID when you have one
+  </script>
 </head>
 <body>
   <header>
-    <h1>Resume Optimizer</h1>
-    <nav>
-      <ul>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="features.html">Features</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="contact.html">Contact</a></li>
-      </ul>
-    </nav>
+    <div class="container">
+      <div class="logo">
+        <h1>Resume Optimizer</h1>
+      </div>
+      <nav>
+        <ul>
+          <li><a href="index.html" class="active">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="optimize.html" class="cta-button">Optimize Now</a></li>
+        </ul>
+      </nav>
+    </div>
   </header>
 
   <main>
     <section class="hero">
-      <h2>Optimize Your Resume for Job Success</h2>
-      <p>Our AI-powered tool helps you create ATS-friendly resumes that stand out to employers and increase your chances of landing interviews.</p>
-    </section>
-
-    <section class="features">
-      <div class="feature">
-        <h3>Keyword Analysis</h3>
-        <p>Identify important keywords from job descriptions and ensure they're in your resume.</p>
-      </div>
-      <div class="feature">
-        <h3>ATS Optimization</h3>
-        <p>Format your resume to be ATS-friendly, ensuring it gets past automated screening systems.</p>
-      </div>
-      <div class="feature">
-        <h3>Content Suggestions</h3>
-        <p>Get AI-powered suggestions to improve your resume content and highlight relevant skills.</p>
+      <div class="container">
+        <div class="hero-content">
+          <h2>Get More Interviews with an Optimized Resume</h2>
+          <p>Our tool analyzes your resume against job descriptions to help you stand out to recruiters and pass Applicant Tracking Systems.</p>
+          <div class="cta-buttons">
+            <a href="optimize.html" class="button primary">Optimize My Resume</a>
+            <a href="features.html" class="button secondary">Learn More</a>
+          </div>
+        </div>
+        <div class="hero-image">
+          <img src="images/resume-hero.png" alt="Resume optimization illustration" width="500" height="400">
+        </div>
       </div>
     </section>
 
-    <section class="cta">
-      <a href="optimize.html" class="button">Get Started</a>
+    <section class="benefits">
+      <div class="container">
+        <h2 class="section-title">Why Optimize Your Resume?</h2>
+        <div class="benefits-grid">
+          <div class="benefit-card">
+            <div class="benefit-icon">📈</div>
+            <h3>Increase Interview Chances</h3>
+            <p>Tailored resumes are 3x more likely to get an interview than generic ones.</p>
+          </div>
+          <div class="benefit-card">
+            <div class="benefit-icon">🤖</div>
+            <h3>Beat ATS Systems</h3>
+            <p>75% of resumes are rejected by ATS before a human sees them.</p>
+          </div>
+          <div class="benefit-card">
+            <div class="benefit-icon">🔍</div>
+            <h3>Stand Out to Recruiters</h3>
+            <p>Recruiters spend an average of just 7 seconds scanning a resume.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-it-works">
+      <div class="container">
+        <h2 class="section-title">How It Works</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <h3>Upload Your Resume</h3>
+            <p>Upload your existing resume in PDF format.</p>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <h3>Add Job Description</h3>
+            <p>Paste the job description you're applying for.</p>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <h3>Get Optimization Tips</h3>
+            <p>Receive personalized suggestions to improve your resume.</p>
+          </div>
+        </div>
+        <div class="cta-center">
+          <a href="optimize.html" class="button primary">Try It Now - It's Free</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="testimonials">
+      <div class="container">
+        <h2 class="section-title">What Users Say</h2>
+        <div class="testimonial-grid">
+          <div class="testimonial-card">
+            <p class="testimonial-text">"I applied to 15 jobs with my original resume and got no responses. After optimizing with this tool, I got 3 interviews from my next 5 applications!"</p>
+            <p class="testimonial-author">- Michael S., Software Engineer</p>
+          </div>
+          <div class="testimonial-card">
+            <p class="testimonial-text">"The keyword analysis helped me understand what recruiters were looking for. My resume now perfectly matches the jobs I'm applying for."</p>
+            <p class="testimonial-author">- Sarah T., Marketing Specialist</p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer>
-    <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-logo">
+          <h2>Resume Optimizer</h2>
+          <p>Land more interviews with an optimized resume</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-column">
+            <h3>Product</h3>
+            <ul>
+              <li><a href="features.html">Features</a></li>
+              <li><a href="about.html">About</a></li>
+            </ul>
+          </div>
+          <div class="footer-column">
+            <h3>Resources</h3>
+            <ul>
+              <li><a href="#">Resume Tips</a></li>
+              <li><a href="#">Career Advice</a></li>
+            </ul>
+          </div>
+          <div class="footer-column">
+            <h3>Company</h3>
+            <ul>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
+      </div>
+    </div>
   </footer>
+
+  <script src="js/main.js"></script>
 </body>
 </html>
