@@ -4,64 +4,110 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resume Optimizer</title>
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      margin-bottom: 40px;
+    }
+    nav ul {
+      display: flex;
+      list-style: none;
+      padding: 0;
+    }
+    nav ul li {
+      margin-right: 20px;
+    }
+    nav ul li a {
+      text-decoration: none;
+      color: #0070f3;
+    }
+    .hero {
+      background-color: #f9f9f9;
+      padding: 60px 20px;
+      border-radius: 8px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .feature {
+      background-color: #fff;
+      border: 1px solid #eaeaea;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .cta {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .button {
+      display: inline-block;
+      background-color: #0070f3;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #eaeaea;
+    }
+  </style>
 </head>
 <body>
   <header>
-    <div class="container">
-      <h1 class="logo">Resume Optimizer</h1>
-      <nav>
-        <ul>
-          <li><a href="index.html" class="active">Home</a></li>
-          <li><a href="features.html">Features</a></li>
-          <li><a href="about.html">About</a></li>
-          <li><a href="contact.html">Contact</a></li>
-          <li><a href="optimize.html">Optimize</a></li>
-        </ul>
-      </nav>
-    </div>
+    <h1>Resume Optimizer</h1>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
   </header>
 
   <main>
     <section class="hero">
-      <div class="container">
-        <h2>Optimize Your Resume for Job Success</h2>
-        <p>Our AI-powered tool helps you create ATS-friendly resumes that stand out to employers and increase your chances of landing interviews.</p>
-        <a href="optimize.html" class="btn">Get Started</a>
-      </div>
+      <h2>Optimize Your Resume for Job Success</h2>
+      <p>Our AI-powered tool helps you create ATS-friendly resumes that stand out to employers and increase your chances of landing interviews.</p>
     </section>
 
     <section class="features">
-      <div class="container">
-        <h2>Key Features</h2>
-        <div class="feature-grid">
-          <div class="feature-card">
-            <h3>ATS Optimization</h3>
-            <p>Ensure your resume passes through Applicant Tracking Systems with our intelligent optimization.</p>
-          </div>
-          <div class="feature-card">
-            <h3>Keyword Analysis</h3>
-            <p>Identify and incorporate the most important keywords from job descriptions.</p>
-          </div>
-          <div class="feature-card">
-            <h3>Format Suggestions</h3>
-            <p>Get recommendations on how to format your resume for maximum impact.</p>
-          </div>
-          <div class="feature-card">
-            <h3>Content Improvement</h3>
-            <p>Receive suggestions to improve the content and wording of your resume.</p>
-          </div>
-        </div>
+      <div class="feature">
+        <h3>Keyword Analysis</h3>
+        <p>Identify important keywords from job descriptions and ensure they're in your resume.</p>
       </div>
+      <div class="feature">
+        <h3>ATS Optimization</h3>
+        <p>Format your resume to be ATS-friendly, ensuring it gets past automated screening systems.</p>
+      </div>
+      <div class="feature">
+        <h3>Content Suggestions</h3>
+        <p>Get AI-powered suggestions to improve your resume content and highlight relevant skills.</p>
+      </div>
+    </section>
+
+    <section class="cta">
+      <a href="optimize.html" class="button">Get Started</a>
     </section>
   </main>
 
   <footer>
-    <div class="container">
-      <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
-    </div>
+    <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
   </footer>
-
-  <script src="script.js"></script>
 </body>
 </html>

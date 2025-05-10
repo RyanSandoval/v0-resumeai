@@ -4,7 +4,52 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Features - Resume Optimizer</title>
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      margin-bottom: 40px;
+    }
+    nav ul {
+      display: flex;
+      list-style: none;
+      padding: 0;
+    }
+    nav ul li {
+      margin-right: 20px;
+    }
+    nav ul li a {
+      text-decoration: none;
+      color: #0070f3;
+    }
+    .page-header {
+      background-color: #f9f9f9;
+      padding: 40px 20px;
+      border-radius: 8px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .feature-item {
+      margin-bottom: 40px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid #eaeaea;
+    }
+    .feature-item:last-child {
+      border-bottom: none;
+    }
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #eaeaea;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -30,36 +75,24 @@
     </section>
 
     <section class="features-detailed">
-      <div class="container">
-        <div class="feature">
-          <h3>ATS Optimization</h3>
-          <p>Our system analyzes your resume against industry-standard Applicant Tracking Systems to ensure it gets past automated filters and into the hands of hiring managers.</p>
-        </div>
-        
-        <div class="feature">
-          <h3>Keyword Analysis</h3>
-          <p>We extract important keywords from job descriptions and compare them with your resume, suggesting additions and modifications to increase your match rate.</p>
-        </div>
-        
-        <div class="feature">
-          <h3>Format Suggestions</h3>
-          <p>Get recommendations on how to structure your resume for maximum readability and impact, including section ordering, spacing, and layout.</p>
-        </div>
-        
-        <div class="feature">
-          <h3>Content Improvement</h3>
-          <p>Our AI analyzes your resume content and suggests improvements to make your achievements more impactful and your skills more relevant to the job you're applying for.</p>
-        </div>
-        
-        <div class="feature">
-          <h3>Resume Templates</h3>
-          <p>Choose from a variety of professional templates designed to be both visually appealing and ATS-friendly.</p>
-        </div>
-        
-        <div class="feature">
-          <h3>Job Tracking</h3>
-          <p>Keep track of your job applications, interviews, and follow-ups in one convenient dashboard.</p>
-        </div>
+      <div class="feature-item">
+        <h3>Keyword Analysis</h3>
+        <p>Our AI scans job descriptions to identify key skills, qualifications, and terminology that recruiters are looking for. We then analyze your resume to see if these keywords are present and suggest additions where needed.</p>
+      </div>
+
+      <div class="feature-item">
+        <h3>ATS Optimization</h3>
+        <p>Applicant Tracking Systems (ATS) can reject resumes before a human ever sees them. We ensure your resume is formatted correctly for these systems, with proper headings, fonts, and layouts that won't get filtered out.</p>
+      </div>
+
+      <div class="feature-item">
+        <h3>Content Improvement</h3>
+        <p>Beyond keywords, we provide suggestions to strengthen your achievements, use more impactful language, and highlight relevant experience that aligns with the job description.</p>
+      </div>
+
+      <div class="feature-item">
+        <h3>Format Suggestions</h3>
+        <p>We analyze your resume's structure and provide recommendations to improve readability, organization, and visual appeal, ensuring recruiters can quickly find the information they need.</p>
       </div>
     </section>
   </main>
