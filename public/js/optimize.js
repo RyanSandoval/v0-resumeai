@@ -1,0 +1,448 @@
+/**
+ * Main JavaScript for the Resume Optimizer tool
+ */
+
+document.addEventListener("DOMContentLoaded", () => {
+  // DOM elements
+  const resumeUploadArea = document.getElementById("resumeUploadArea")
+  const resumeFile = document.getElementById("resumeFile")
+  const resumeFileInfo = document.getElementById("resumeFileInfo")
+  const resumeFileName = document.getElementById("resumeFileName")
+  const removeResumeFile = document.getElementById("removeResumeFile")
+  const jobDescription = document.getElementById("jobDescription")
+  const keywordInput = document.getElementById("keywordInput")
+  const keywordsList = document.getElementById("keywordsList")
+  const analyzeButton = document.getElementById("analyzeButton")
+  const initialMessage = document.getElementById("initialMessage")
+  const loadingMessage = document.getElementById("loadingMessage")
+  const resultsArea = document.getElementById("resultsArea")
+  const scoreCircle = document.getElementById("scoreCircle")
+  const scoreText = document.getElementById("scoreText")
+  const keywordAnalysis = document.getElementById("keywordAnalysis")
+  const suggestionsList = document.getElementById("suggestionsList")
+  const resumePreview = document.getElementById("resumePreview")
+  const downloadPdfButton = document.getElementById("downloadPdfButton")
+  const saveAnalysisButton = document.getElementById("saveAnalysisButton")
+
+  // Variables to store data
+  const resumeData = {
+    file: null,
+    text: "",
+  }
+  let additionalKeywords = []
+  let analysisResults = null
+
+  // Declare functions (assuming they are defined elsewhere or in included scripts)
+  let extractTextFromPDF
+  let gtag
+  let analyzeKeywordMatch
+  let highlightKeywords
+  let createOptimizedPDF
+
+  // Initialize from local storage if available
+  initFromLocalStorage()
+
+  // Resume upload functionality
+  resumeUploadArea.addEventListener("click", () => {
+    resumeFile.click()
+  })
+
+  resumeFile.addEventListener("change", handleFileSelection)
+
+  resumeUploadArea.addEventListener("dragover", (e) => {
+    e.preventDefault()
+    resumeUploadArea.classList.add("dragover")
+  })
+
+  resumeUploadArea.addEventListener("dragleave", () => {
+    resumeUploadArea.classList.remove("dragover")
+  })
+
+  resumeUploadArea.addEventListener("drop", (e) => {
+    e.preventDefault()
+    resumeUploadArea.classList.remove("dragover")
+
+    if (e.dataTransfer.files.length) {
+      handleFileSelection({ target: { files: e.dataTransfer.files } })
+    }
+  })
+
+  removeResumeFile.addEventListener("click", (e) => {
+    e.stopPropagation()
+    resetResumeFile()
+  })
+
+  // Keywords functionality
+  keywordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && keywordInput.value.trim()) {
+      addKeyword(keywordInput.value.trim())
+      keywordInput.value = ""
+      e.preventDefault()
+    }
+  })
+
+  // Analyze button functionality
+  analyzeButton.addEventListener("click", analyzeResume)
+
+  // Download and save buttons
+  downloadPdfButton.addEventListener("click", downloadOptimizedPdf)
+  saveAnalysisButton.addEventListener("click", saveAnalysisToLocalStorage)
+
+  /**
+   * Handles file selection from the file input
+   */
+  async function handleFileSelection(event) {
+    const file = event.target.files[0]
+
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== "application/pdf") {
+      alert("Please upload a PDF file")
+      return
+    }
+
+    try {
+      resumeData.file = file
+      resumeFileName.textContent = file.name
+      resumeUploadArea.classList.add("hidden")
+      resumeFileInfo.classList.remove("hidden")
+
+      // Extract text from PDF
+      resumeData.text = await extractTextFromPDF(file)
+
+      // Enable analyze button if job description is also filled
+      checkAnalyzeButtonState()
+
+      // Track event
+      if (typeof gtag === "function") {
+        gtag("event", "resume_upload", {
+          event_category: "engagement",
+          event_label: file.type,
+        })
+      }
+    } catch (error) {
+      alert(error.message)
+      resetResumeFile()
+    }
+  }
+
+  /**
+   * Resets the resume file input
+   */
+  function resetResumeFile() {
+    resumeFile.value = ""
+    resumeData.file = null
+    resumeData.text = ""
+    resumeUploadArea.classList.remove("hidden")
+    resumeFileInfo.classList.add("hidden")
+    checkAnalyzeButtonState()
+  }
+
+  /**
+   * Adds a keyword to the keywords list
+   */
+  function addKeyword(keyword) {
+    if (additionalKeywords.includes(keyword)) return
+
+    additionalKeywords.push(keyword)
+
+    const keywordTag = document.createElement("div")
+    keywordTag.className = "keyword-tag"
+    keywordTag.innerHTML = `
+      ${keyword}
+      <span class="keyword-remove" data-keyword="${keyword}">×</span>
+    `
+
+    keywordTag.querySelector(".keyword-remove").addEventListener("click", function () {
+      const keyword = this.getAttribute("data-keyword")
+      removeKeyword(keyword, keywordTag)
+    })
+
+    keywordsList.appendChild(keywordTag)
+  }
+
+  /**
+   * Removes a keyword from the keywords list
+   */
+  function removeKeyword(keyword, element) {
+    additionalKeywords = additionalKeywords.filter((k) => k !== keyword)
+    element.remove()
+  }
+
+  /**
+   * Checks if the analyze button should be enabled
+   */
+  function checkAnalyzeButtonState() {
+    const hasResume = resumeData.file !== null
+    const hasJobDescription = jobDescription.value.trim().length > 0
+
+    if (hasResume && hasJobDescription) {
+      analyzeButton.disabled = false
+      analyzeButton.classList.remove("disabled")
+    } else {
+      analyzeButton.disabled = true
+      analyzeButton.classList.add("disabled")
+    }
+  }
+
+  /**
+   * Analyzes the resume against the job description
+   */
+  async function analyzeResume() {
+    if (!resumeData.file || !jobDescription.value.trim()) {
+      alert("Please upload a resume and enter a job description")
+      return
+    }
+
+    try {
+      // Show loading state
+      initialMessage.classList.add("hidden")
+      loadingMessage.classList.remove("hidden")
+      resultsArea.classList.add("hidden")
+
+      // Simulate processing delay
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Perform analysis
+      analysisResults = analyzeKeywordMatch(resumeData.text, jobDescription.value, additionalKeywords)
+
+      // Update UI with results
+      displayResults(analysisResults)
+
+      // Track event
+      if (typeof gtag === "function") {
+        gtag("event", "resume_analysis", {
+          event_category: "engagement",
+          event_label: `score_${analysisResults.score}`,
+        })
+      }
+    } catch (error) {
+      alert("An error occurred while analyzing your resume: " + error.message)
+      loadingMessage.classList.add("hidden")
+      initialMessage.classList.remove("hidden")
+    }
+  }
+
+  /**
+   * Displays the analysis results in the UI
+   */
+  function displayResults(results) {
+    // Hide loading, show results
+    loadingMessage.classList.add("hidden")
+    resultsArea.classList.remove("hidden")
+
+    // Update score
+    scoreCircle.style.strokeDasharray = `${results.score}, 100`
+    scoreText.textContent = `${results.score}%`
+
+    // Update keyword analysis
+    displayKeywordAnalysis(results)
+
+    // Update suggestions
+    displaySuggestions(results.suggestions)
+
+    // Update resume preview
+    displayResumePreview(resumeData.text, results)
+  }
+
+  /**
+   * Displays keyword analysis in the UI
+   */
+  function displayKeywordAnalysis(results) {
+    keywordAnalysis.innerHTML = ""
+
+    // Matching keywords section
+    if (results.matchingKeywords.length > 0) {
+      const matchingSection = document.createElement("div")
+      matchingSection.className = "keyword-category"
+      matchingSection.innerHTML = `
+        <h4>
+          <span class="keyword-category-icon">✓</span>
+          Found in Your Resume (${results.matchingKeywords.length})
+        </h4>
+      `
+
+      results.matchingKeywords.forEach((keyword) => {
+        const keywordItem = document.createElement("div")
+        keywordItem.className = "keyword-item"
+        keywordItem.innerHTML = `
+          <div class="keyword-match-icon match">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div class="keyword-text">${keyword.text}</div>
+          <div class="keyword-frequency">${keyword.frequency}×</div>
+        `
+        matchingSection.appendChild(keywordItem)
+      })
+
+      keywordAnalysis.appendChild(matchingSection)
+    }
+
+    // Missing keywords section
+    if (results.missingKeywords.length > 0) {
+      const missingSection = document.createElement("div")
+      missingSection.className = "keyword-category"
+      missingSection.innerHTML = `
+        <h4>
+          <span class="keyword-category-icon">✗</span>
+          Missing from Your Resume (${results.missingKeywords.length})
+        </h4>
+      `
+
+      results.missingKeywords.forEach((keyword) => {
+        const keywordItem = document.createElement("div")
+        keywordItem.className = "keyword-item"
+        keywordItem.innerHTML = `
+          <div class="keyword-match-icon missing">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </div>
+          <div class="keyword-text">${keyword}</div>
+        `
+        missingSection.appendChild(keywordItem)
+      })
+
+      keywordAnalysis.appendChild(missingSection)
+    }
+  }
+
+  /**
+   * Displays suggestions in the UI
+   */
+  function displaySuggestions(suggestions) {
+    suggestionsList.innerHTML = ""
+
+    suggestions.forEach((suggestion) => {
+      const li = document.createElement("li")
+      li.textContent = suggestion
+      suggestionsList.appendChild(li)
+    })
+  }
+
+  /**
+   * Displays resume preview with highlighted keywords
+   */
+  function displayResumePreview(text, results) {
+    // Get all matching keywords
+    const keywords = results.matchingKeywords.map((k) => k.text)
+
+    // Highlight keywords in text
+    const highlightedText = highlightKeywords(text, keywords)
+
+    // Add some basic styling
+    resumePreview.innerHTML = `
+      <style>
+        .highlight {
+          background-color: rgba(74, 108, 247, 0.2);
+          padding: 0 2px;
+          border-radius: 2px;
+        }
+      </style>
+      ${highlightedText}
+    `
+  }
+
+  /**
+   * Downloads the optimized PDF
+   */
+  async function downloadOptimizedPdf() {
+    if (!analysisResults) return
+
+    try {
+      const pdfBlob = await createOptimizedPDF(resumeData.text, analysisResults)
+
+      // Create download link
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "optimized-resume.txt"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      // Track event
+      if (typeof gtag === "function") {
+        gtag("event", "download_optimized_pdf", {
+          event_category: "engagement",
+        })
+      }
+    } catch (error) {
+      alert("Error creating optimized PDF: " + error.message)
+    }
+  }
+
+  /**
+   * Saves analysis to local storage
+   */
+  function saveAnalysisToLocalStorage() {
+    if (!analysisResults) return
+
+    const dataToSave = {
+      resumeText: resumeData.text,
+      jobDescription: jobDescription.value,
+      additionalKeywords,
+      analysisResults,
+      timestamp: new Date().toISOString(),
+    }
+
+    localStorage.setItem("resumeOptimizerData", JSON.stringify(dataToSave))
+    alert("Analysis saved! You can come back later to continue working on it.")
+
+    // Track event
+    if (typeof gtag === "function") {
+      gtag("event", "save_analysis", {
+        event_category: "engagement",
+      })
+    }
+  }
+
+  /**
+   * Initializes the app from data in local storage
+   */
+  function initFromLocalStorage() {
+    const savedData = localStorage.getItem("resumeOptimizerData")
+    if (!savedData) return
+
+    try {
+      const data = JSON.parse(savedData)
+
+      // Ask user if they want to load saved data
+      if (confirm("We found a previously saved analysis. Would you like to load it?")) {
+        // Set job description
+        jobDescription.value = data.jobDescription || ""
+
+        // Set additional keywords
+        if (data.additionalKeywords && Array.isArray(data.additionalKeywords)) {
+          data.additionalKeywords.forEach((keyword) => addKeyword(keyword))
+        }
+
+        // Set resume text
+        if (data.resumeText) {
+          resumeData.text = data.resumeText
+          resumeFileName.textContent = "Saved Resume.pdf"
+          resumeUploadArea.classList.add("hidden")
+          resumeFileInfo.classList.remove("hidden")
+        }
+
+        // If we have analysis results, display them
+        if (data.analysisResults) {
+          analysisResults = data.analysisResults
+          checkAnalyzeButtonState()
+          initialMessage.classList.add("hidden")
+          displayResults(analysisResults)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading saved data:", error)
+    }
+  }
+
+  // Listen for job description changes to enable/disable analyze button
+  jobDescription.addEventListener("input", checkAnalyzeButtonState)
+})
