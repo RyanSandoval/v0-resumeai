@@ -9,83 +9,123 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 /**
  * Extracts text from a PDF file
- * @param {File} file - The PDF file to extract text from
+ * @param {File} file - The PDF file
  * @returns {Promise<string>} - The extracted text
  */
 async function extractTextFromPDF(file) {
   try {
+    // Read the file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()
+
+    // Load the PDF document
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
 
+    // Get total number of pages
+    const numPages = pdf.numPages
     let fullText = ""
 
     // Extract text from each page
-    for (let i = 1; i <= pdf.numPages; i++) {
+    for (let i = 1; i <= numPages; i++) {
       const page = await pdf.getPage(i)
       const textContent = await page.getTextContent()
-      const textItems = textContent.items.map((item) => item.str)
-      fullText += textItems.join(" ") + "\n"
+
+      // Join the text items
+      const pageText = textContent.items.map((item) => item.str).join(" ")
+
+      fullText += pageText + "\n\n"
     }
 
     return fullText
   } catch (error) {
     console.error("Error extracting text from PDF:", error)
-    throw new Error("Failed to extract text from PDF. Please try again or use a different file.")
+    throw new Error("Failed to extract text from PDF. Please try another file.")
   }
 }
 
 /**
- * Creates a basic PDF from resume text with optimization suggestions
- * @param {string} resumeText - Original resume text
- * @param {Object} analysis - Analysis results
- * @returns {Promise<Blob>} - PDF blob for download
- */
-async function createOptimizedPDF(resumeText, analysis) {
-  // This is a placeholder function
-  // In a real application, you would use a proper PDF generation library
-  // For this demo, we'll just create a simple HTML document and convert it to PDF
-
-  alert("In a full implementation, this would generate an optimized PDF with your resume and suggestions.")
-
-  // For now, just return the original text as a text file
-  const blob = new Blob(
-    [
-      `RESUME OPTIMIZATION REPORT\n\n` +
-        `Match Score: ${analysis.score}%\n\n` +
-        `SUGGESTIONS:\n` +
-        analysis.suggestions.join("\n") +
-        "\n\n" +
-        `MISSING KEYWORDS:\n` +
-        analysis.missingKeywords.join(", ") +
-        "\n\n" +
-        `ORIGINAL RESUME:\n` +
-        resumeText,
-    ],
-    { type: "text/plain" },
-  )
-
-  return blob
-}
-
-/**
- * Simple function to highlight keywords in text
- * @param {string} text - Text to highlight keywords in
+ * Highlights keywords in text
+ * @param {string} text - The text to highlight
  * @param {Array} keywords - Keywords to highlight
  * @returns {string} - HTML with highlighted keywords
  */
 function highlightKeywords(text, keywords) {
-  if (!keywords || keywords.length === 0 || !text) {
-    return text
+  if (!text || !keywords || keywords.length === 0) return text
+
+  // Escape HTML special characters
+  let safeText = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+
+  // Sort keywords by length (longest first) to avoid partial matches
+  const sortedKeywords = [...keywords].sort((a, b) => b.length - a.length)
+
+  // Create a regex pattern for all keywords
+  const pattern = sortedKeywords.map((keyword) => escapeRegExp(keyword)).join("|")
+
+  // Only proceed if we have keywords to highlight
+  if (pattern) {
+    const regex = new RegExp(`\\b(${pattern})\\b`, "gi")
+    safeText = safeText.replace(regex, '<span class="highlight">$1</span>')
   }
 
-  let highlightedText = text
+  // Convert newlines to <br> tags
+  return safeText.replace(/\n/g, "<br>")
+}
 
-  // Create a regex pattern from the keywords
-  // This is a simple implementation and has limitations
-  keywords.forEach((keyword) => {
-    const regex = new RegExp(`\\b${keyword}\\b`, "gi")
-    highlightedText = highlightedText.replace(regex, (match) => `<span class="highlight">${match}</span>`)
-  })
+/**
+ * Escapes special characters in a string for use in a regular expression
+ * @param {string} string - The string to escape
+ * @returns {string} - The escaped string
+ */
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
 
-  return highlightedText
+/**
+ * Creates an optimized version of the resume text
+ * @param {string} resumeText - The original resume text
+ * @param {Object} analysisResults - The analysis results
+ * @returns {Promise<Blob>} - A Blob containing the optimized resume
+ */
+async function createOptimizedPDF(resumeText, analysisResults) {
+  // For now, we'll just create a text file with suggestions
+  // In a more advanced version, this would generate an actual PDF
+
+  const missingKeywords = analysisResults.missingKeywords || []
+  const suggestions = analysisResults.suggestions || []
+
+  let optimizedText = "RESUME OPTIMIZATION REPORT\n"
+  optimizedText += "==========================\n\n"
+
+  optimizedText += `Match Score: ${analysisResults.score}%\n\n`
+
+  optimizedText += "MISSING KEYWORDS:\n"
+  optimizedText += "----------------\n"
+  if (missingKeywords.length > 0) {
+    missingKeywords.forEach((keyword) => {
+      optimizedText += `- ${keyword}\n`
+    })
+  } else {
+    optimizedText += "No missing keywords found.\n"
+  }
+
+  optimizedText += "\nSUGGESTIONS:\n"
+  optimizedText += "-----------\n"
+  if (suggestions.length > 0) {
+    suggestions.forEach((suggestion) => {
+      optimizedText += `- ${suggestion}\n`
+    })
+  } else {
+    optimizedText += "No suggestions available.\n"
+  }
+
+  optimizedText += "\nORIGINAL RESUME TEXT:\n"
+  optimizedText += "--------------------\n"
+  optimizedText += resumeText
+
+  // Create a Blob with the text
+  return new Blob([optimizedText], { type: "text/plain" })
 }
