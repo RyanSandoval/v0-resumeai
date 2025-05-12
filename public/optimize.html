@@ -45,7 +45,7 @@
           <li><a href="optimize.html" class="active cta-button">Optimize Now</a></li>
         </ul>
       </nav>
-      <button class="mobile-menu-button" aria-label="Toggle menu">
+      <button class="mobile-menu-button" id="mobileMenuButton" aria-label="Toggle menu">
         <span></span>
         <span></span>
         <span></span>
@@ -99,7 +99,28 @@
 
             <div class="card">
               <h3>Job Description</h3>
-              <textarea id="jobDescription" rows="10" placeholder="Paste the job description here..."></textarea>
+              <div class="job-description-tabs">
+                <button class="tab-button active" data-tab="paste">Paste Job Description</button>
+                <button class="tab-button" data-tab="url">Enter Job URL</button>
+              </div>
+              
+              <div class="tab-content" id="pasteTab">
+                <textarea id="jobDescription" rows="10" placeholder="Paste the job description here..."></textarea>
+              </div>
+              
+              <div class="tab-content hidden" id="urlTab">
+                <div class="url-input-container">
+                  <input type="url" id="jobUrl" placeholder="Enter job posting URL (LinkedIn, Indeed, Glassdoor, etc.)">
+                  <button id="fetchJobButton" class="button secondary">Fetch Job</button>
+                </div>
+                <div class="supported-sites">
+                  <p>Supported sites: LinkedIn, Indeed, Glassdoor, Monster, ZipRecruiter</p>
+                </div>
+                <div id="jobDescriptionLoading" class="loading-indicator hidden">
+                  <div class="spinner small"></div>
+                  <p>Fetching job description...</p>
+                </div>
+              </div>
             </div>
 
             <div class="card">
@@ -225,6 +246,7 @@
   <script src="js/document-utils.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/keyword-analyzer.js"></script>
+  <script src="js/job-scraper.js"></script>
   <script src="js/optimize.js"></script>
 </body>
 </html>

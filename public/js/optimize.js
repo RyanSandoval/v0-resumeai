@@ -5,7 +5,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Declare gtag if it's not already defined
   if (typeof gtag === "undefined") {
-    gtag = () => {
+    window.gtag = () => {
       console.warn("gtag function is not defined. Ensure Google Analytics is properly configured.")
     }
   }
@@ -17,6 +17,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const resumeFileName = document.getElementById("resumeFileName")
   const removeResumeFile = document.getElementById("removeResumeFile")
   const jobDescription = document.getElementById("jobDescription")
+  const jobUrl = document.getElementById("jobUrl")
+  const fetchJobButton = document.getElementById("fetchJobButton")
+  const jobDescriptionLoading = document.getElementById("jobDescriptionLoading")
   const keywordInput = document.getElementById("keywordInput")
   const keywordsList = document.getElementById("keywordsList")
   const analyzeButton = document.getElementById("analyzeButton")
@@ -30,6 +33,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const resumePreview = document.getElementById("resumePreview")
   const downloadPdfButton = document.getElementById("downloadPdfButton")
   const saveAnalysisButton = document.getElementById("saveAnalysisButton")
+  const tabButtons = document.querySelectorAll(".tab-button")
+  const tabContents = document.querySelectorAll(".tab-content")
 
   // Variables to store data
   const resumeData = {
@@ -39,9 +44,29 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   let additionalKeywords = []
   let analysisResults = null
+  let jobMetadata = {
+    title: "",
+    company: "",
+    source: "",
+  }
 
   // Initialize from local storage if available
   initFromLocalStorage()
+
+  // Tab functionality
+  tabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const tabId = button.getAttribute("data-tab")
+
+      // Update active tab button
+      tabButtons.forEach((btn) => btn.classList.remove("active"))
+      button.classList.add("active")
+
+      // Show selected tab content
+      tabContents.forEach((content) => content.classList.add("hidden"))
+      document.getElementById(`${tabId}Tab`).classList.remove("hidden")
+    })
+  })
 
   // Resume upload functionality
   resumeUploadArea.addEventListener("click", () => {
@@ -72,6 +97,9 @@ document.addEventListener("DOMContentLoaded", () => {
     e.stopPropagation()
     resetResumeFile()
   })
+
+  // Job URL functionality
+  fetchJobButton.addEventListener("click", fetchJobDescription)
 
   // Keywords functionality
   keywordInput.addEventListener("keydown", (e) => {
@@ -143,6 +171,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
       alert(error.message)
       resetResumeFile()
+    }
+  }
+
+  /**
+   * Fetches job description from URL
+   */
+  async function fetchJobDescription() {
+    const url = jobUrl.value.trim()
+
+    if (!url) {
+      alert("Please enter a job posting URL")
+      return
+    }
+
+    try {
+      // Validate URL format
+      new URL(url)
+
+      // Show loading indicator
+      jobDescriptionLoading.classList.remove("hidden")
+
+      // Fetch job description
+      const jobData = await window.extractJobDescriptionFromUrl(url)
+
+      // Update job description textarea
+      jobDescription.value = jobData.jobDescription
+
+      // Store metadata
+      jobMetadata = {
+        title: jobData.title,
+        company: jobData.company,
+        source: jobData.source,
+      }
+
+      // Switch to paste tab to show the result
+      document.querySelector('.tab-button[data-tab="paste"]').click()
+
+      // Enable analyze button if resume is also uploaded
+      checkAnalyzeButtonState()
+
+      // Track event
+      if (typeof gtag === "function") {
+        gtag("event", "job_url_fetch", {
+          event_category: "engagement",
+          event_label: jobData.source,
+        })
+      }
+
+      // Show success message
+      alert(`Successfully extracted job description for ${jobData.title} at ${jobData.company}`)
+    } catch (error) {
+      jobDescriptionLoading.classList.add("hidden")
+      alert(error.message)
     }
   }
 
@@ -411,6 +492,7 @@ document.addEventListener("DOMContentLoaded", () => {
       additionalKeywords,
       analysisResults,
       fileType: resumeData.fileType,
+      jobMetadata,
       timestamp: new Date().toISOString(),
     }
 
@@ -453,6 +535,11 @@ document.addEventListener("DOMContentLoaded", () => {
           resumeFileName.textContent = "Saved Resume." + resumeData.fileType
           resumeUploadArea.classList.add("hidden")
           resumeFileInfo.classList.remove("hidden")
+        }
+
+        // Set job metadata if available
+        if (data.jobMetadata) {
+          jobMetadata = data.jobMetadata
         }
 
         // If we have analysis results, display them
