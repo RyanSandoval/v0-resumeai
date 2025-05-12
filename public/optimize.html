@@ -18,6 +18,9 @@
   <!-- PDF.js for client-side PDF parsing -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
   
+  <!-- Mammoth.js for DOCX parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+  
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-MEASUREMENT-ID"></script>
   <script>
@@ -38,9 +41,15 @@
           <li><a href="index.html">Home</a></li>
           <li><a href="features.html">Features</a></li>
           <li><a href="about.html">About</a></li>
+          <li><a href="faq.html">FAQ</a></li>
           <li><a href="optimize.html" class="active cta-button">Optimize Now</a></li>
         </ul>
       </nav>
+      <button class="mobile-menu-button" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </div>
   </header>
 
@@ -60,7 +69,7 @@
             <div class="card">
               <h3>Upload Your Resume</h3>
               <div class="upload-area" id="resumeUploadArea">
-                <input type="file" id="resumeFile" accept=".pdf" hidden>
+                <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" hidden>
                 <div class="upload-icon">
                   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -69,7 +78,7 @@
                   </svg>
                 </div>
                 <p>Drag & drop your resume here or <span class="upload-link">browse files</span></p>
-                <p class="file-types">Supported format: PDF</p>
+                <p class="file-types">Supported formats: PDF, DOC, DOCX</p>
               </div>
               <div class="file-info hidden" id="resumeFileInfo">
                 <div class="file-preview">
@@ -193,8 +202,8 @@
           <div class="footer-column">
             <h3>Resources</h3>
             <ul>
+              <li><a href="faq.html">FAQ</a></li>
               <li><a href="#">Resume Tips</a></li>
-              <li><a href="#">Career Advice</a></li>
             </ul>
           </div>
           <div class="footer-column">
@@ -213,8 +222,9 @@
   </footer>
 
   <script src="js/main.js"></script>
-  <script src="js/optimize.js"></script>
+  <script src="js/document-utils.js"></script>
   <script src="js/pdf-utils.js"></script>
   <script src="js/keyword-analyzer.js"></script>
+  <script src="js/optimize.js"></script>
 </body>
 </html>

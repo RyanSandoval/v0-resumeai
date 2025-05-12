@@ -129,3 +129,8 @@ async function createOptimizedPDF(resumeText, analysisResults) {
   // Create a Blob with the text
   return new Blob([optimizedText], { type: "text/plain" })
 }
+
+// Export functions to global scope for use in other scripts
+window.extractTextFromPDF = extractTextFromPDF
+window.highlightKeywords = highlightKeywords
+window.createOptimizedPDF = createOptimizedPDF

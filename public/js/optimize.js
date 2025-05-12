@@ -3,6 +3,13 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Declare gtag if it's not already defined
+  if (typeof gtag === "undefined") {
+    gtag = () => {
+      console.warn("gtag function is not defined. Ensure Google Analytics is properly configured.")
+    }
+  }
+
   // DOM elements
   const resumeUploadArea = document.getElementById("resumeUploadArea")
   const resumeFile = document.getElementById("resumeFile")
@@ -28,16 +35,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const resumeData = {
     file: null,
     text: "",
+    fileType: "",
   }
   let additionalKeywords = []
   let analysisResults = null
-
-  // Declare functions (assuming they are defined elsewhere or in included scripts)
-  let extractTextFromPDF
-  let gtag
-  let analyzeKeywordMatch
-  let highlightKeywords
-  let createOptimizedPDF
 
   // Initialize from local storage if available
   initFromLocalStorage()
@@ -97,19 +98,33 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!file) return
 
     // Validate file type
-    if (file.type !== "application/pdf") {
-      alert("Please upload a PDF file")
+    const fileExtension = file.name.split(".").pop().toLowerCase()
+    const validExtensions = ["pdf", "doc", "docx"]
+
+    if (!validExtensions.includes(fileExtension)) {
+      alert("Please upload a PDF, DOC, or DOCX file")
       return
     }
 
     try {
+      // Show loading indicator for file processing
+      initialMessage.classList.add("hidden")
+      loadingMessage.classList.remove("hidden")
+
       resumeData.file = file
+      resumeData.fileType = fileExtension
       resumeFileName.textContent = file.name
+
+      // Extract text from file using the appropriate function
+      resumeData.text = await window.extractTextFromFile(file)
+
+      // Hide loading indicator
+      loadingMessage.classList.add("hidden")
+      initialMessage.classList.remove("hidden")
+
+      // Update UI
       resumeUploadArea.classList.add("hidden")
       resumeFileInfo.classList.remove("hidden")
-
-      // Extract text from PDF
-      resumeData.text = await extractTextFromPDF(file)
 
       // Enable analyze button if job description is also filled
       checkAnalyzeButtonState()
@@ -118,10 +133,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof gtag === "function") {
         gtag("event", "resume_upload", {
           event_category: "engagement",
-          event_label: file.type,
+          event_label: fileExtension,
         })
       }
     } catch (error) {
+      // Hide loading indicator
+      loadingMessage.classList.add("hidden")
+      initialMessage.classList.remove("hidden")
+
       alert(error.message)
       resetResumeFile()
     }
@@ -134,6 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
     resumeFile.value = ""
     resumeData.file = null
     resumeData.text = ""
+    resumeData.fileType = ""
     resumeUploadArea.classList.remove("hidden")
     resumeFileInfo.classList.add("hidden")
     checkAnalyzeButtonState()
@@ -202,10 +222,10 @@ document.addEventListener("DOMContentLoaded", () => {
       resultsArea.classList.add("hidden")
 
       // Simulate processing delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
       // Perform analysis
-      analysisResults = analyzeKeywordMatch(resumeData.text, jobDescription.value, additionalKeywords)
+      analysisResults = window.analyzeKeywordMatch(resumeData.text, jobDescription.value, additionalKeywords)
 
       // Update UI with results
       displayResults(analysisResults)
@@ -215,6 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
         gtag("event", "resume_analysis", {
           event_category: "engagement",
           event_label: `score_${analysisResults.score}`,
+          file_type: resumeData.fileType,
         })
       }
     } catch (error) {
@@ -332,7 +353,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const keywords = results.matchingKeywords.map((k) => k.text)
 
     // Highlight keywords in text
-    const highlightedText = highlightKeywords(text, keywords)
+    const highlightedText = window.highlightKeywords(text, keywords)
 
     // Add some basic styling
     resumePreview.innerHTML = `
@@ -354,7 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!analysisResults) return
 
     try {
-      const pdfBlob = await createOptimizedPDF(resumeData.text, analysisResults)
+      const pdfBlob = await window.createOptimizedPDF(resumeData.text, analysisResults)
 
       // Create download link
       const url = URL.createObjectURL(pdfBlob)
@@ -370,6 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof gtag === "function") {
         gtag("event", "download_optimized_pdf", {
           event_category: "engagement",
+          file_type: resumeData.fileType,
         })
       }
     } catch (error) {
@@ -388,6 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
       jobDescription: jobDescription.value,
       additionalKeywords,
       analysisResults,
+      fileType: resumeData.fileType,
       timestamp: new Date().toISOString(),
     }
 
@@ -398,6 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof gtag === "function") {
       gtag("event", "save_analysis", {
         event_category: "engagement",
+        file_type: resumeData.fileType,
       })
     }
   }
@@ -425,7 +449,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Set resume text
         if (data.resumeText) {
           resumeData.text = data.resumeText
-          resumeFileName.textContent = "Saved Resume.pdf"
+          resumeData.fileType = data.fileType || "pdf"
+          resumeFileName.textContent = "Saved Resume." + resumeData.fileType
           resumeUploadArea.classList.add("hidden")
           resumeFileInfo.classList.remove("hidden")
         }
