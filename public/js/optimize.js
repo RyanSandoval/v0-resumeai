@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const jobUrl = document.getElementById("jobUrl")
   const fetchJobButton = document.getElementById("fetchJobButton")
   const jobDescriptionLoading = document.getElementById("jobDescriptionLoading")
+  const jobUrlStatus = document.getElementById("jobUrlStatus")
   const keywordInput = document.getElementById("keywordInput")
   const keywordsList = document.getElementById("keywordsList")
   const analyzeButton = document.getElementById("analyzeButton")
@@ -181,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const url = jobUrl.value.trim()
 
     if (!url) {
-      alert("Please enter a job posting URL")
+      updateJobUrlStatus("Please enter a job posting URL", "error")
       return
     }
 
@@ -189,8 +190,15 @@ document.addEventListener("DOMContentLoaded", () => {
       // Validate URL format
       new URL(url)
 
+      // Clear previous status
+      updateJobUrlStatus("", "")
+
       // Show loading indicator
       jobDescriptionLoading.classList.remove("hidden")
+      updateJobUrlStatus("Fetching job description...", "info")
+
+      // Disable fetch button to prevent multiple requests
+      fetchJobButton.disabled = true
 
       // Fetch job description
       const jobData = await window.extractJobDescriptionFromUrl(url)
@@ -220,10 +228,32 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Show success message
-      alert(`Successfully extracted job description for ${jobData.title} at ${jobData.company}`)
+      updateJobUrlStatus(`Successfully extracted job description for ${jobData.title} at ${jobData.company}`, "success")
     } catch (error) {
+      updateJobUrlStatus(error.message, "error")
+    } finally {
+      // Hide loading indicator and re-enable button
       jobDescriptionLoading.classList.add("hidden")
-      alert(error.message)
+      fetchJobButton.disabled = false
+    }
+  }
+
+  /**
+   * Updates the job URL status message
+   * @param {string} message - The status message
+   * @param {string} type - The message type (error, success, info)
+   */
+  function updateJobUrlStatus(message, type) {
+    if (!jobUrlStatus) return
+
+    jobUrlStatus.textContent = message
+
+    // Remove all status classes
+    jobUrlStatus.classList.remove("error", "success", "info")
+
+    // Add the appropriate class
+    if (type) {
+      jobUrlStatus.classList.add(type)
     }
   }
 

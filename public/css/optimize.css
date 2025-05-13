@@ -370,3 +370,69 @@ textarea {
     flex-direction: column;
   }
 }
+
+/* Add these styles to the existing CSS file */
+
+/* Status message styles */
+#jobUrlStatus {
+  margin-top: 8px;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+#jobUrlStatus.error {
+  color: #e53e3e;
+}
+
+#jobUrlStatus.success {
+  color: #38a169;
+}
+
+#jobUrlStatus.info {
+  color: #3182ce;
+}
+
+/* Improve loading indicator visibility */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #3182ce;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Make sure the job URL input has enough space */
+#urlTab {
+  padding: 16px;
+}
+
+#urlTab .input-group {
+  margin-bottom: 16px;
+}
+
+/* Improve button states */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Add a note about supported job sites */
+.supported-sites {
+  font-size: 12px;
+  color: #718096;
+  margin-top: 8px;
+}
+
+.supported-sites strong {
+  font-weight: 600;
+}
