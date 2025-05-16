@@ -3,289 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Optimize Your Resume - Resume Optimizer</title>
-  
-  <!-- SEO Meta Tags -->
-  <meta name="description" content="Upload your resume and job description to get personalized optimization suggestions.">
-  
-  <!-- Favicon -->
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
-  
-  <!-- CSS -->
+  <title>Resume Optimizer</title>
   <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/optimize.css">
   <link rel="stylesheet" href="css/resume-editor.css">
-  
-  <!-- PDF.js for client-side PDF parsing -->
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
-  
-  <!-- Mammoth.js for DOCX parsing -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
-  
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MEASUREMENT-ID"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-MEASUREMENT-ID');
-  </script>
+  <!-- Include PDF.js for PDF parsing (optional) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+  <!-- Include mammoth.js for Word document parsing (optional) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.19/mammoth.browser.min.js"></script>
 </head>
 <body>
   <header>
     <div class="container">
       <div class="logo">
-        <h1><a href="index.html">Resume Optimizer</a></h1>
+        <a href="index.html">
+          <img src="logo.png" alt="Resume Optimizer Logo">
+          <span>Resume Optimizer</span>
+        </a>
       </div>
       <nav>
         <ul>
           <li><a href="index.html">Home</a></li>
           <li><a href="features.html">Features</a></li>
           <li><a href="about.html">About</a></li>
-          <li><a href="faq.html">FAQ</a></li>
-          <li><a href="optimize.html" class="active cta-button">Optimize Now</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li class="active"><a href="optimize.html">Optimize</a></li>
         </ul>
       </nav>
-      <button class="mobile-menu-button" id="mobileMenuButton" aria-label="Toggle menu">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
     </div>
   </header>
 
   <main>
     <section class="page-header">
       <div class="container">
-        <h2>Optimize Your Resume</h2>
-        <p>Upload your resume and a job description to get personalized optimization suggestions</p>
+        <h1>Resume Optimizer</h1>
+        <p>Upload your resume and a job description to get personalized optimization suggestions.</p>
       </div>
     </section>
 
-    <section class="optimizer-tool">
-      <div class="container">
-        <div class="tool-grid">
-          <!-- Left Column: Inputs -->
-          <div class="input-column">
-            <div class="card">
-              <h3>Upload Your Resume</h3>
-              <div class="upload-area" id="resumeUploadArea">
-                <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" hidden>
-                <div class="upload-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                  </svg>
-                </div>
-                <p>Drag & drop your resume here or <span class="upload-link">browse files</span></p>
-                <p class="file-types">Supported formats: PDF, DOC, DOCX</p>
-              </div>
-              <div class="file-info hidden" id="resumeFileInfo">
-                <div class="file-preview">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                </div>
-                <div class="file-details">
-                  <p class="file-name" id="resumeFileName">filename.pdf</p>
-                  <button class="remove-file" id="removeResumeFile">Remove</button>
-                </div>
-              </div>
-            </div>
+    <section class="resume-editor-container">
+      <div class="editor-section">
+        <h2>Upload Your Resume</h2>
+        <div class="file-upload-container">
+          <label for="resumeUpload">Select your resume file (PDF, Word, or Text)</label>
+          <input type="file" id="resumeUpload" accept=".pdf,.doc,.docx,.txt">
+        </div>
+      </div>
 
-            <div class="card">
-              <h3>Job Description</h3>
-              <div class="job-description-tabs">
-                <button class="tab-button active" data-tab="paste">Paste Job Description</button>
-                <button class="tab-button" data-tab="url">Enter Job URL</button>
-              </div>
-              
-              <div class="tab-content" id="pasteTab">
-                <textarea id="jobDescription" rows="10" placeholder="Paste the job description here..."></textarea>
-              </div>
-              
-              <div class="tab-content hidden" id="urlTab">
-                <div class="url-input-container">
-                  <input type="url" id="jobUrl" placeholder="Enter job posting URL (LinkedIn, Indeed, Glassdoor, etc.)">
-                  <button id="fetchJobButton" class="button secondary">Fetch Job</button>
-                </div>
-                <div class="supported-sites">
-                  <p>Supported sites: LinkedIn, Indeed, Glassdoor, Monster, ZipRecruiter</p>
-                </div>
-                <div id="jobDescriptionLoading" class="loading-indicator hidden">
-                  <div class="spinner small"></div>
-                  <p>Fetching job description...</p>
-                </div>
-                <div id="jobUrlStatus" class="status-message"></div>
-              </div>
-            </div>
+      <div class="resume-editor-layout">
+        <div class="resume-editor-column">
+          <div class="editor-section">
+            <h2>Resume Editor</h2>
+            <div id="resumeEditor" contenteditable="true" placeholder="Your resume content will appear here..."></div>
+          </div>
+        </div>
 
-            <div class="card">
-              <h3>Keywords (Optional)</h3>
-              <div class="keywords-input">
-                <input type="text" id="keywordInput" placeholder="Add a keyword and press Enter">
-                <div class="keywords-list" id="keywordsList"></div>
-              </div>
+        <div class="resume-editor-column">
+          <div class="editor-section">
+            <h2>Job Description</h2>
+            <div class="job-description-container">
+              <label for="jobDescriptionInput">Paste the job description here</label>
+              <textarea id="jobDescriptionInput" placeholder="Paste the job description here to analyze against your resume..."></textarea>
             </div>
-
-            <button id="analyzeButton" class="button primary btn-large">Analyze Resume</button>
           </div>
 
-          <!-- Right Column: Results -->
-          <div class="results-column">
-            <div id="resultsArea" class="hidden">
-              <div class="card">
-                <h3>Resume Analysis</h3>
-                <div class="score-container">
-                  <div class="score-circle">
-                    <svg viewBox="0 0 36 36" class="circular-chart">
-                      <path class="circle-bg" d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path id="scoreCircle" class="circle" stroke-dasharray="75, 100" d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31  stroke-dasharray="75, 100" d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <text x="18" y="20.35" class="percentage" id="scoreText">75%</text>
-                    </svg>
-                  </div>
-                  <p>Match Score</p>
-                </div>
-              </div>
-
-              <!-- Real-time Resume Editor -->
-              <div class="resume-editor-container" id="resumeEditorContainer">
-                <div class="editor-header">
-                  <div class="editor-title">Resume Editor</div>
-                  <div class="editor-actions">
-                    <div class="editor-status" id="editorStatus"></div>
-                    <div class="view-mode-toggles">
-                      <button class="view-mode-toggle active" data-mode="edit">Edit</button>
-                      <button class="view-mode-toggle" data-mode="original">Original</button>
-                      <button class="view-mode-toggle" data-mode="optimized">Optimized</button>
-                      <button class="view-mode-toggle" data-mode="comparison">Compare</button>
-                    </div>
-                  </div>
-                </div>
-                <div class="editor-main">
-                  <textarea id="resumeEditor" class="editor-textarea" spellcheck="true"></textarea>
-                  <div id="resumeComparison" class="resume-comparison hidden"></div>
-                </div>
-                <div class="editor-footer">
-                  <div class="analysis-status" id="analysisStatus"></div>
-                </div>
-              </div>
-
-              <!-- Improvement Suggestions -->
-              <div class="suggestions-container">
-                <div class="suggestions-header">
-                  <div>Improvement Suggestions</div>
-                  <div class="suggestions-count">
-                    <span>Applied: </span>
-                    <span class="count-badge" id="appliedSuggestionsCount">0</span>
-                  </div>
-                </div>
-                <div class="suggestions-list" id="improvementSuggestions">
-                  <!-- Suggestions will be inserted here by JavaScript -->
-                </div>
-                <div class="empty-suggestions hidden" id="emptySuggestions">
-                  <p>No more suggestions! Your resume looks great.</p>
-                </div>
-              </div>
-
-              <!-- Keywords Analysis -->
-              <div class="keywords-container">
-                <div class="keywords-column">
-                  <div class="keywords-header">Matching Keywords</div>
-                  <div class="keywords-list" id="matchingKeywords">
-                    <!-- Matching keywords will be inserted here by JavaScript -->
-                  </div>
-                </div>
-                <div class="keywords-column">
-                  <div class="keywords-header">Missing Keywords</div>
-                  <div class="keywords-list" id="missingKeywords">
-                    <!-- Missing keywords will be inserted here by JavaScript -->
-                  </div>
-                </div>
-              </div>
-              
-              <div class="actions-container">
-                <button id="downloadPdfButton" class="button primary">Download Optimized PDF</button>
-                <button id="saveAnalysisButton" class="button secondary">Save Analysis</button>
-              </div>
-            </div>
-
-            <div id="initialMessage" class="initial-message">
-              <div class="message-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-              </div>
-              <h3>Ready to Optimize Your Resume</h3>
-              <p>Upload your resume and paste a job description to get started. Our tool will analyze your resume and provide personalized suggestions to improve your chances of landing an interview.</p>
+          <div class="editor-section analysis-results">
+            <h2>Analysis Results</h2>
+            <div id="scoreDisplay" class="score-display">Match Score: 0%</div>
+            
+            <div class="keywords-container">
+              <h3>Key Skills & Keywords</h3>
+              <ul id="keywordsList" class="keywords-list">
+                <li>No keywords found yet</li>
+              </ul>
             </div>
             
-            <div id="loadingMessage" class="loading-message hidden">
-              <div class="spinner"></div>
-              <h3>Analyzing Your Resume</h3>
-              <p>Please wait while we process your resume and job description...</p>
+            <div class="suggestions-container">
+              <h3>Optimization Suggestions</h3>
+              <ul id="suggestionsList" class="suggestions-list">
+                <li>Upload your resume and add a job description to get suggestions</li>
+              </ul>
+            </div>
+            
+            <div class="button-container">
+              <button id="applyChangesBtn" class="primary-button">Apply Suggestions</button>
+              <button id="compareBtn" class="secondary-button">Compare Changes</button>
             </div>
           </div>
         </div>
+      </div>
+      
+      <div id="loadingIndicator" class="loading-indicator">
+        <div class="spinner"></div>
+        <p>Processing your resume...</p>
       </div>
     </section>
   </main>
 
   <footer>
     <div class="container">
-      <div class="footer-content">
-        <div class="footer-logo">
-          <h2>Resume Optimizer</h2>
-          <p>Land more interviews with an optimized resume</p>
-        </div>
-        <div class="footer-links">
-          <div class="footer-column">
-            <h3>Product</h3>
-            <ul>
-              <li><a href="features.html">Features</a></li>
-              <li><a href="about.html">About</a></li>
-            </ul>
-          </div>
-          <div class="footer-column">
-            <h3>Resources</h3>
-            <ul>
-              <li><a href="faq.html">FAQ</a></li>
-              <li><a href="#">Resume Tips</a></li>
-            </ul>
-          </div>
-          <div class="footer-column">
-            <h3>Company</h3>
-            <ul>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
+      <p>&copy; 2023 Resume Optimizer. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="faq.html">FAQ</a>
       </div>
     </div>
   </footer>
 
-  <script src="js/main.js"></script>
+  <!-- Load scripts in the correct order -->
   <script src="js/document-utils.js"></script>
-  <script src="js/pdf-utils.js"></script>
   <script src="js/keyword-analyzer.js"></script>
-  <script src="js/job-scraper.js"></script>
   <script src="js/resume-editor.js"></script>
-  <script src="js/optimize.js"></script>
+  <script src="js/editor-diagnostics.js"></script>
 </body>
 </html>

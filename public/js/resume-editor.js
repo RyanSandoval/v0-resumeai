@@ -30,23 +30,23 @@
     isAnalyzing: false,
     changesSaved: true,
     analysisTimeout: null,
-
-    // Add functions to the state for external access
-    addKeywordToResume: null, // Will be set during initialization
+    jobDescription: "",
   }
 
   /**
    * Initialize the resume editor
    * @param {string} resumeText - The initial resume text
    * @param {Object} initialAnalysis - Initial analysis results
+   * @param {string} jobDescription - The job description
    */
-  function initResumeEditor(resumeText, initialAnalysis) {
-    console.log("Initializing resume editor")
+  function initResumeEditor(resumeText, initialAnalysis, jobDescription = "") {
+    console.log("Initializing resume editor with text length:", resumeText?.length)
 
     // Store initial state
     editorState.originalText = resumeText || ""
     editorState.currentText = resumeText || ""
     editorState.analysisResults = initialAnalysis || null
+    editorState.jobDescription = jobDescription || ""
 
     // Set up the editor
     setupEditor()
@@ -64,9 +64,6 @@
 
     // Update UI with initial state
     updateUI()
-
-    // Set up the addKeywordToResume function for external access
-    editorState.addKeywordToResume = addKeywordToResume
 
     console.log("Resume editor initialized successfully")
   }
@@ -119,7 +116,6 @@
 
   /**
    * Handle keyboard shortcuts
-   * @param {KeyboardEvent} event - The keyboard event
    */
   function handleKeyboardShortcuts(event) {
     // Ctrl/Cmd + S to save
@@ -171,9 +167,10 @@
 
     try {
       // Get job description
-      const jobDescription = document.getElementById("jobDescription")
+      const jobDescription = editorState.jobDescription || document.getElementById("jobDescription")?.value || ""
+
       if (!jobDescription) {
-        throw new Error("Job description element not found")
+        throw new Error("Job description not found")
       }
 
       // Get additional keywords
@@ -185,7 +182,7 @@
       }
 
       // Perform analysis
-      const results = window.analyzeKeywordMatch(editorState.currentText, jobDescription.value, additionalKeywords)
+      const results = window.analyzeKeywordMatch(editorState.currentText, jobDescription, additionalKeywords)
 
       // Update state with new results
       editorState.analysisResults = results
@@ -1321,3 +1318,609 @@
     }),
   }
 })()
+/**
+ * Resume Editor - Main functionality
+ * This script handles the core resume editing and optimization features
+ */
+
+// Global variables
+let resumeText = ""
+let originalResumeText = ""
+let currentScore = 0
+let currentKeywords = []
+let currentSuggestions = []
+
+// Initialize the editor when the DOM is loaded
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("Resume Editor initializing...")
+  initializeEditor()
+})
+
+// Set up the editor and event listeners
+function initializeEditor() {
+  // Get DOM elements
+  const resumeUpload = document.getElementById("resumeUpload")
+  const jobDescriptionInput = document.getElementById("jobDescriptionInput")
+  const applyChangesBtn = document.getElementById("applyChangesBtn")
+  const compareBtn = document.getElementById("compareBtn")
+  const resumeEditor = document.getElementById("resumeEditor")
+
+  // Check if required elements exist
+  if (!resumeUpload || !jobDescriptionInput) {
+    console.error("Required DOM elements not found. Editor initialization failed.")
+    return
+  }
+
+  // Set up file upload handler
+  resumeUpload.addEventListener("change", (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      processResumeFile(file)
+    }
+  })
+
+  // Set up job description input handler
+  jobDescriptionInput.addEventListener(
+    "input",
+    debounce(function () {
+      if (resumeText) {
+        updateAnalysis(resumeText, this.value)
+      }
+    }, 500),
+  )
+
+  // Set up apply changes button
+  if (applyChangesBtn) {
+    applyChangesBtn.addEventListener("click", () => {
+      applySuggestions()
+    })
+  }
+
+  // Set up compare button
+  if (compareBtn) {
+    compareBtn.addEventListener("click", () => {
+      showComparison()
+    })
+  }
+
+  // Make resume editor editable if it exists
+  if (resumeEditor) {
+    if (resumeEditor.tagName === "DIV") {
+      resumeEditor.contentEditable = "true"
+      resumeEditor.addEventListener("input", function () {
+        resumeText = this.textContent
+        const jobDescription = jobDescriptionInput.value
+        if (jobDescription) {
+          updateAnalysis(resumeText, jobDescription)
+        }
+      })
+    } else if (resumeEditor.tagName === "TEXTAREA") {
+      resumeEditor.addEventListener("input", function () {
+        resumeText = this.value
+        const jobDescription = jobDescriptionInput.value
+        if (jobDescription) {
+          updateAnalysis(resumeText, jobDescription)
+        }
+      })
+    }
+  }
+
+  console.log("Resume Editor initialized successfully")
+}
+
+// Process the uploaded resume file
+function processResumeFile(file) {
+  console.log("Processing resume file:", file.name)
+
+  // Check file type
+  const fileType = file.type || ""
+  const fileName = file.name || ""
+  const fileExtension = fileName.split(".").pop().toLowerCase()
+
+  if (fileType.includes("pdf") || fileExtension === "pdf") {
+    processPdfFile(file)
+  } else if (fileType.includes("word") || ["doc", "docx"].includes(fileExtension)) {
+    processWordFile(file)
+  } else {
+    // Default to text processing
+    processTextFile(file)
+  }
+}
+
+// Process PDF files
+function processPdfFile(file) {
+  console.log("Processing PDF file")
+
+  // Check if PDF.js is available
+  if (window.pdfjsLib) {
+    const fileReader = new FileReader()
+
+    fileReader.onload = function () {
+      const typedArray = new Uint8Array(this.result)
+
+      // Load the PDF document
+      window.pdfjsLib
+        .getDocument(typedArray)
+        .promise.then((pdf) => {
+          // Extract text from all pages
+          const textPromises = []
+          for (let i = 1; i <= pdf.numPages; i++) {
+            textPromises.push(
+              pdf
+                .getPage(i)
+                .then((page) =>
+                  page.getTextContent().then((textContent) => textContent.items.map((item) => item.str).join(" ")),
+                ),
+            )
+          }
+
+          // Combine text from all pages
+          Promise.all(textPromises).then((pageTexts) => {
+            resumeText = pageTexts.join("\n\n")
+            originalResumeText = resumeText
+
+            // Update the editor
+            updateEditorContent(resumeText)
+
+            // Run analysis if job description is available
+            const jobDescription = document.getElementById("jobDescriptionInput").value
+            if (jobDescription) {
+              updateAnalysis(resumeText, jobDescription)
+            }
+          })
+        })
+        .catch((error) => {
+          console.error("Error processing PDF:", error)
+          alert("Error processing PDF file. Please try a different file format.")
+        })
+    }
+
+    fileReader.readAsArrayBuffer(file)
+  } else {
+    // Fallback to text processing if PDF.js is not available
+    console.warn("PDF.js not available, falling back to text processing")
+    processTextFile(file)
+  }
+}
+
+// Process Word files
+function processWordFile(file) {
+  console.log("Processing Word file")
+
+  // Check if mammoth.js is available
+  if (window.mammoth) {
+    const fileReader = new FileReader()
+
+    fileReader.onload = function () {
+      window.mammoth
+        .extractRawText({ arrayBuffer: this.result })
+        .then((result) => {
+          resumeText = result.value
+          originalResumeText = resumeText
+
+          // Update the editor
+          updateEditorContent(resumeText)
+
+          // Run analysis if job description is available
+          const jobDescription = document.getElementById("jobDescriptionInput").value
+          if (jobDescription) {
+            updateAnalysis(resumeText, jobDescription)
+          }
+        })
+        .catch((error) => {
+          console.error("Error processing Word document:", error)
+          alert("Error processing Word file. Please try a different file format.")
+        })
+    }
+
+    fileReader.readAsArrayBuffer(file)
+  } else {
+    // Fallback to text processing if mammoth.js is not available
+    console.warn("mammoth.js not available, falling back to text processing")
+    processTextFile(file)
+  }
+}
+
+// Process text files
+function processTextFile(file) {
+  console.log("Processing text file")
+
+  const fileReader = new FileReader()
+
+  fileReader.onload = function () {
+    resumeText = this.result
+    originalResumeText = resumeText
+
+    // Update the editor
+    updateEditorContent(resumeText)
+
+    // Run analysis if job description is available
+    const jobDescription = document.getElementById("jobDescriptionInput").value
+    if (jobDescription) {
+      updateAnalysis(resumeText, jobDescription)
+    }
+  }
+
+  fileReader.readAsText(file)
+}
+
+// Update the editor content with the resume text
+function updateEditorContent(text) {
+  const resumeEditor = document.getElementById("resumeEditor")
+
+  if (resumeEditor) {
+    if (resumeEditor.tagName === "TEXTAREA") {
+      resumeEditor.value = text
+    } else {
+      resumeEditor.textContent = text
+    }
+  }
+}
+
+// Update the analysis based on resume and job description
+function updateAnalysis(resumeText, jobDescription) {
+  if (!resumeText || !jobDescription) {
+    console.warn("Missing resume text or job description for analysis")
+    return
+  }
+
+  console.log("Updating analysis")
+
+  // Extract keywords from job description
+  currentKeywords = extractKeywords(jobDescription)
+
+  // Calculate match score
+  currentScore = calculateScore(resumeText, jobDescription, currentKeywords)
+
+  // Generate suggestions
+  currentSuggestions = generateSuggestions(resumeText, jobDescription, currentKeywords)
+
+  // Update UI
+  updateUI(currentScore, currentKeywords, currentSuggestions)
+}
+
+// Extract keywords from job description
+function extractKeywords(text) {
+  if (!text) return []
+
+  // Simple keyword extraction
+  const words = text.match(/\b\w{3,}\b/g) || []
+  const wordFreq = {}
+
+  words.forEach((word) => {
+    const lowerWord = word.toLowerCase()
+    wordFreq[lowerWord] = (wordFreq[lowerWord] || 0) + 1
+  })
+
+  // Filter out common words
+  const commonWords = ["the", "and", "for", "with", "that", "this", "are", "you", "from", "have"]
+  const keywords = Object.keys(wordFreq)
+    .filter((word) => !commonWords.includes(word) && wordFreq[word] > 1)
+    .sort((a, b) => wordFreq[b] - wordFreq[a])
+    .slice(0, 15)
+
+  return keywords
+}
+
+// Calculate match score between resume and job description
+function calculateScore(resumeText, jobDescription, keywords) {
+  if (!resumeText || !keywords || !keywords.length) {
+    return 0
+  }
+
+  let matchCount = 0
+  const totalKeywords = keywords.length
+
+  // Count matching keywords
+  keywords.forEach((keyword) => {
+    if (resumeText.toLowerCase().includes(keyword.toLowerCase())) {
+      matchCount++
+    }
+  })
+
+  // Calculate basic score based on keyword matches
+  let score = Math.round((matchCount / totalKeywords) * 100)
+
+  // Adjust score based on resume length (penalize very short resumes)
+  if (resumeText.length < 500) {
+    score = Math.max(0, score - 20)
+  }
+
+  return score
+}
+
+// Generate suggestions for improving the resume
+function generateSuggestions(resumeText, jobDescription, keywords) {
+  const suggestions = []
+
+  // Check for missing keywords
+  const missingKeywords = []
+  keywords.forEach((keyword) => {
+    if (!resumeText.toLowerCase().includes(keyword.toLowerCase())) {
+      missingKeywords.push(keyword)
+    }
+  })
+
+  if (missingKeywords.length > 0) {
+    suggestions.push(`Consider adding these keywords: ${missingKeywords.join(", ")}`)
+  }
+
+  // Check resume length
+  if (resumeText.length < 1000) {
+    suggestions.push("Your resume seems short. Consider adding more details about your experience.")
+  }
+
+  // Check for contact information
+  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
+  const phoneRegex = /\b(\+\d{1,2}\s)?$$?\d{3}$$?[\s.-]?\d{3}[\s.-]?\d{4}\b/
+
+  if (!emailRegex.test(resumeText)) {
+    suggestions.push("Add your email address for contact information.")
+  }
+
+  if (!phoneRegex.test(resumeText)) {
+    suggestions.push("Add your phone number for contact information.")
+  }
+
+  // Check for education section
+  const educationKeywords = ["education", "degree", "university", "college", "bachelor", "master", "phd"]
+  const hasEducation = educationKeywords.some((keyword) => resumeText.toLowerCase().includes(keyword.toLowerCase()))
+
+  if (!hasEducation) {
+    suggestions.push("Consider adding an education section to your resume.")
+  }
+
+  // Check for experience section
+  const experienceKeywords = ["experience", "work", "job", "position", "role"]
+  const hasExperience = experienceKeywords.some((keyword) => resumeText.toLowerCase().includes(keyword.toLowerCase()))
+
+  if (!hasExperience) {
+    suggestions.push("Consider adding work experience details to your resume.")
+  }
+
+  return suggestions
+}
+
+// Update the UI with analysis results
+function updateUI(score, keywords, suggestions) {
+  // Update score display
+  const scoreDisplay = document.getElementById("scoreDisplay")
+  if (scoreDisplay) {
+    scoreDisplay.textContent = `Match Score: ${score}%`
+
+    // Add visual indicator of score
+    if (score < 40) {
+      scoreDisplay.className = "score-low"
+    } else if (score < 70) {
+      scoreDisplay.className = "score-medium"
+    } else {
+      scoreDisplay.className = "score-high"
+    }
+  }
+
+  // Update keywords list
+  const keywordsList = document.getElementById("keywordsList")
+  if (keywordsList) {
+    keywordsList.innerHTML = ""
+
+    if (keywords.length === 0) {
+      const li = document.createElement("li")
+      li.textContent = "No keywords found"
+      keywordsList.appendChild(li)
+    } else {
+      keywords.forEach((keyword) => {
+        const li = document.createElement("li")
+        li.textContent = keyword
+
+        // Highlight keywords that are in the resume
+        if (resumeText.toLowerCase().includes(keyword.toLowerCase())) {
+          li.className = "keyword-match"
+        } else {
+          li.className = "keyword-missing"
+        }
+
+        keywordsList.appendChild(li)
+      })
+    }
+  }
+
+  // Update suggestions list
+  const suggestionsList = document.getElementById("suggestionsList")
+  if (suggestionsList) {
+    suggestionsList.innerHTML = ""
+
+    if (suggestions.length === 0) {
+      const li = document.createElement("li")
+      li.textContent = "No suggestions available"
+      suggestionsList.appendChild(li)
+    } else {
+      suggestions.forEach((suggestion) => {
+        const li = document.createElement("li")
+        li.textContent = suggestion
+        suggestionsList.appendChild(li)
+      })
+    }
+  }
+}
+
+// Apply suggestions to the resume
+function applySuggestions() {
+  console.log("Applying suggestions")
+
+  // Store original resume for comparison if not already stored
+  originalResumeText = originalResumeText || resumeText
+
+  // Get missing keywords
+  const jobDescription = document.getElementById("jobDescriptionInput").value
+  const keywords = extractKeywords(jobDescription)
+
+  const missingKeywords = []
+  keywords.forEach((keyword) => {
+    if (!resumeText.toLowerCase().includes(keyword.toLowerCase())) {
+      missingKeywords.push(keyword)
+    }
+  })
+
+  if (missingKeywords.length > 0) {
+    // Add missing keywords to the resume
+    const keywordSection = `\n\nAdditional Skills: ${missingKeywords.join(", ")}`
+    resumeText += keywordSection
+
+    // Update the editor with the new text
+    updateEditorContent(resumeText)
+
+    // Re-run analysis
+    updateAnalysis(resumeText, jobDescription)
+
+    // Show success message
+    alert("Suggestions applied successfully!")
+  } else {
+    alert("No missing keywords to add.")
+  }
+}
+
+// Show comparison between original and current resume
+function showComparison() {
+  console.log("Showing comparison")
+
+  if (!originalResumeText || originalResumeText === resumeText) {
+    alert("No changes to compare. Please apply suggestions first.")
+    return
+  }
+
+  // Create comparison modal if it doesn't exist
+  let comparisonModal = document.getElementById("comparisonModal")
+  if (!comparisonModal) {
+    comparisonModal = document.createElement("div")
+    comparisonModal.id = "comparisonModal"
+    comparisonModal.className = "comparison-modal"
+
+    const modalContent = document.createElement("div")
+    modalContent.className = "comparison-modal-content"
+
+    const closeBtn = document.createElement("span")
+    closeBtn.className = "close-button"
+    closeBtn.innerHTML = "&times;"
+    closeBtn.onclick = () => {
+      comparisonModal.style.display = "none"
+    }
+
+    const title = document.createElement("h2")
+    title.textContent = "Resume Comparison"
+
+    const comparisonContainer = document.createElement("div")
+    comparisonContainer.className = "comparison-container"
+
+    const originalColumn = document.createElement("div")
+    originalColumn.className = "comparison-column"
+    const originalTitle = document.createElement("h3")
+    originalTitle.textContent = "Original Resume"
+    const originalContent = document.createElement("pre")
+    originalContent.id = "originalResumeContent"
+    originalColumn.appendChild(originalTitle)
+    originalColumn.appendChild(originalContent)
+
+    const updatedColumn = document.createElement("div")
+    updatedColumn.className = "comparison-column"
+    const updatedTitle = document.createElement("h3")
+    updatedTitle.textContent = "Updated Resume"
+    const updatedContent = document.createElement("pre")
+    updatedColumn.id = "updatedResumeContent"
+    updatedColumn.appendChild(updatedTitle)
+    updatedColumn.appendChild(updatedContent)
+
+    comparisonContainer.appendChild(originalColumn)
+    comparisonContainer.appendChild(updatedColumn)
+
+    modalContent.appendChild(closeBtn)
+    modalContent.appendChild(title)
+    modalContent.appendChild(comparisonContainer)
+
+    comparisonModal.appendChild(modalContent)
+    document.body.appendChild(comparisonModal)
+
+    // Add basic styles
+    const style = document.createElement("style")
+    style.textContent = `
+      .comparison-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.7);
+      }
+      
+      .comparison-modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 20px;
+        width: 90%;
+        max-width: 1200px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      
+      .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      
+      .comparison-container {
+        display: flex;
+        gap: 20px;
+      }
+      
+      .comparison-column {
+        flex: 1;
+        border: 1px solid #ddd;
+        padding: 10px;
+      }
+      
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      
+      .highlight {
+        background-color: #ffff99;
+      }
+    `
+    document.head.appendChild(style)
+  }
+
+  // Update comparison content
+  document.getElementById("originalResumeContent").textContent = originalResumeText
+  document.getElementById("updatedResumeContent").textContent = resumeText
+
+  // Show the modal
+  comparisonModal.style.display = "block"
+}
+
+// Utility function to debounce frequent events
+function debounce(func, wait) {
+  let timeout
+  return function () {
+    
+    const args = arguments
+    clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      func.apply(this, args)
+    }, wait)
+  }
+}
+
+// Make functions available globally
+window.processResumeFile = processResumeFile
+window.updateAnalysis = updateAnalysis
+window.extractKeywords = extractKeywords
+window.calculateScore = calculateScore
+window.generateSuggestions = generateSuggestions
+window.updateUI = updateUI
+window.applySuggestions = applySuggestions
+window.showComparison = showComparison

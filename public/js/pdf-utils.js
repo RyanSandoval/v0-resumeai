@@ -121,3 +121,94 @@
   window.createOptimizedPDF = createOptimizedPDF
   window.highlightKeywords = highlightKeywords
 })()
+
+/**
+ * PDF Utilities for Resume Optimizer
+ * This script provides PDF generation and manipulation functionality
+ */
+
+// Check if jsPDF is available
+const hasPdfLibrary = typeof jspdf !== "undefined" && typeof jspdf.jsPDF !== "undefined"
+
+// Generate PDF from resume content
+function generateResumePdf(resumeContent, filename = "optimized-resume.pdf") {
+  if (!hasPdfLibrary) {
+    console.error("jsPDF library not available. Cannot generate PDF.")
+    alert("PDF generation is not available. Please install jsPDF library.")
+    return false
+  }
+
+  try {
+    // Create new PDF document
+    const { jsPDF } = jspdf
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    })
+
+    // Set font
+    doc.setFont("helvetica")
+
+    // Add content
+    const margin = 20
+    const pageWidth = doc.internal.pageSize.getWidth() - margin * 2
+
+    // Split text into lines to fit page width
+    const textLines = doc.splitTextToSize(resumeContent, pageWidth)
+
+    // Add text to document
+    doc.setFontSize(12)
+    doc.text(textLines, margin, margin)
+
+    // Save the PDF
+    doc.save(filename)
+
+    return true
+  } catch (error) {
+    console.error("Error generating PDF:", error)
+    alert("Error generating PDF. Please try again.")
+    return false
+  }
+}
+
+// Download the current resume as PDF
+function downloadResumePdf() {
+  const resumeEditor = document.getElementById("resumeEditor")
+
+  if (!resumeEditor) {
+    alert("Resume editor not found.")
+    return
+  }
+
+  const resumeContent = resumeEditor.tagName === "TEXTAREA" ? resumeEditor.value : resumeEditor.textContent
+
+  if (!resumeContent.trim()) {
+    alert("Please add content to your resume before downloading.")
+    return
+  }
+
+  // Generate PDF
+  generateResumePdf(resumeContent)
+}
+
+// Add download button if jsPDF is available
+document.addEventListener("DOMContentLoaded", () => {
+  if (hasPdfLibrary) {
+    const buttonContainer = document.querySelector(".button-container")
+
+    if (buttonContainer) {
+      const downloadButton = document.createElement("button")
+      downloadButton.id = "downloadPdfBtn"
+      downloadButton.className = "secondary-button"
+      downloadButton.textContent = "Download PDF"
+      downloadButton.addEventListener("click", downloadResumePdf)
+
+      buttonContainer.appendChild(downloadButton)
+    }
+  }
+})
+
+// Make functions available globally
+window.generateResumePdf = generateResumePdf
+window.downloadResumePdf = downloadResumePdf
