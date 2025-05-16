@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Declare gtag if it's not already defined
   if (typeof gtag === "undefined") {
     window.gtag = () => {
-      console.warn("gtag function is not defined. Ensure Google Analytics is properly configured.")
+      console.log("Google Analytics not loaded, tracking disabled")
     }
   }
 
@@ -29,9 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const resultsArea = document.getElementById("resultsArea")
   const scoreCircle = document.getElementById("scoreCircle")
   const scoreText = document.getElementById("scoreText")
-  const keywordAnalysis = document.getElementById("keywordAnalysis")
-  const suggestionsList = document.getElementById("suggestionsList")
-  const resumePreview = document.getElementById("resumePreview")
   const downloadPdfButton = document.getElementById("downloadPdfButton")
   const saveAnalysisButton = document.getElementById("saveAnalysisButton")
   const tabButtons = document.querySelectorAll(".tab-button")
@@ -146,7 +143,11 @@ document.addEventListener("DOMContentLoaded", () => {
       resumeFileName.textContent = file.name
 
       // Extract text from file using the appropriate function
-      resumeData.text = await window.extractTextFromFile(file)
+      if (fileExtension === "pdf") {
+        resumeData.text = await window.extractTextFromPDF(file)
+      } else if (fileExtension === "doc" || fileExtension === "docx") {
+        resumeData.text = await window.extractTextFromDOCX(file)
+      }
 
       // Hide loading indicator
       loadingMessage.classList.add("hidden")
@@ -160,18 +161,17 @@ document.addEventListener("DOMContentLoaded", () => {
       checkAnalyzeButtonState()
 
       // Track event
-      if (typeof gtag === "function") {
-        gtag("event", "resume_upload", {
-          event_category: "engagement",
-          event_label: fileExtension,
-        })
-      }
+      gtag("event", "resume_upload", {
+        event_category: "engagement",
+        event_label: fileExtension,
+      })
     } catch (error) {
+      console.error("File processing error:", error)
       // Hide loading indicator
       loadingMessage.classList.add("hidden")
       initialMessage.classList.remove("hidden")
 
-      alert(error.message)
+      alert(error.message || "Error processing file. Please try another file.")
       resetResumeFile()
     }
   }
@@ -209,9 +209,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Store metadata
       jobMetadata = {
-        title: jobData.title,
-        company: jobData.company,
-        source: jobData.source,
+        title: jobData.title || "",
+        company: jobData.company || "",
+        source: jobData.source || "",
       }
 
       // Switch to paste tab to show the result
@@ -221,17 +221,16 @@ document.addEventListener("DOMContentLoaded", () => {
       checkAnalyzeButtonState()
 
       // Track event
-      if (typeof gtag === "function") {
-        gtag("event", "job_url_fetch", {
-          event_category: "engagement",
-          event_label: jobData.source,
-        })
-      }
+      gtag("event", "job_url_fetch", {
+        event_category: "engagement",
+        event_label: jobData.source,
+      })
 
       // Show success message
       updateJobUrlStatus(`Successfully extracted job description for ${jobData.title} at ${jobData.company}`, "success")
     } catch (error) {
-      updateJobUrlStatus(error.message, "error")
+      console.error("Job fetch error:", error)
+      updateJobUrlStatus(error.message || "Failed to fetch job description", "error")
     } finally {
       // Hide loading indicator and re-enable button
       jobDescriptionLoading.classList.add("hidden")
@@ -241,8 +240,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Updates the job URL status message
-   * @param {string} message - The status message
-   * @param {string} type - The message type (error, success, info)
    */
   function updateJobUrlStatus(message, type) {
     if (!jobUrlStatus) return
@@ -306,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * Checks if the analyze button should be enabled
    */
   function checkAnalyzeButtonState() {
-    const hasResume = resumeData.file !== null
+    const hasResume = resumeData.file !== null || resumeData.text.length > 0
     const hasJobDescription = jobDescription.value.trim().length > 0
 
     if (hasResume && hasJobDescription) {
@@ -322,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * Analyzes the resume against the job description
    */
   async function analyzeResume() {
-    if (!resumeData.file || !jobDescription.value.trim()) {
+    if ((!resumeData.file && !resumeData.text) || !jobDescription.value.trim()) {
       alert("Please upload a resume and enter a job description")
       return
     }
@@ -333,33 +330,42 @@ document.addEventListener("DOMContentLoaded", () => {
       loadingMessage.classList.remove("hidden")
       resultsArea.classList.add("hidden")
 
-      // Simulate processing delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
       // Perform analysis
+      if (!window.analyzeKeywordMatch) {
+        throw new Error("Analysis function not loaded. Please refresh the page and try again.")
+      }
+
       analysisResults = window.analyzeKeywordMatch(resumeData.text, jobDescription.value, additionalKeywords)
 
       // Update UI with results
       displayResults(analysisResults)
 
       // Initialize the resume editor if not already initialized
-      if (!editorInitialized) {
+      if (!editorInitialized && window.ResumeEditor) {
+        console.log("Initializing resume editor with:", resumeData.text.substring(0, 100) + "...")
         window.ResumeEditor.init(resumeData.text, analysisResults)
         editorInitialized = true
+      } else if (!window.ResumeEditor) {
+        console.error("Resume Editor not loaded!")
       }
 
       // Track event
-      if (typeof gtag === "function") {
-        gtag("event", "resume_analysis", {
-          event_category: "engagement",
-          event_label: `score_${analysisResults.score}`,
-          file_type: resumeData.fileType,
-        })
-      }
+      gtag("event", "resume_analysis", {
+        event_category: "engagement",
+        event_label: `score_${analysisResults.score}`,
+        file_type: resumeData.fileType,
+      })
     } catch (error) {
-      alert("An error occurred while analyzing your resume: " + error.message)
+      console.error("Analysis error:", error)
+      alert("An error occurred while analyzing your resume: " + (error.message || "Unknown error"))
+    } finally {
+      // Hide loading indicator
       loadingMessage.classList.add("hidden")
-      initialMessage.classList.remove("hidden")
+      if (analysisResults) {
+        resultsArea.classList.remove("hidden")
+      } else {
+        initialMessage.classList.remove("hidden")
+      }
     }
   }
 
@@ -367,123 +373,80 @@ document.addEventListener("DOMContentLoaded", () => {
    * Displays the analysis results in the UI
    */
   function displayResults(results) {
-    // Hide loading, show results
-    loadingMessage.classList.add("hidden")
-    resultsArea.classList.remove("hidden")
+    if (!results) return
 
     // Update score
-    scoreCircle.style.strokeDasharray = `${results.score}, 100`
-    scoreText.textContent = `${results.score}%`
+    if (scoreCircle && scoreText) {
+      scoreCircle.style.strokeDasharray = `${results.score}, 100`
+      scoreText.textContent = `${results.score}%`
+    }
 
-    // Update keyword analysis
-    displayKeywordAnalysis(results)
-
-    // Update suggestions
-    displaySuggestions(results.suggestions)
-
-    // Update resume preview
-    displayResumePreview(resumeData.text, results)
+    // Update matching keywords in the dedicated lists
+    updateKeywordLists(results)
   }
 
   /**
-   * Displays keyword analysis in the UI
+   * Updates the keyword lists with matching and missing keywords
    */
-  function displayKeywordAnalysis(results) {
-    keywordAnalysis.innerHTML = ""
+  function updateKeywordLists(results) {
+    const matchingContainer = document.getElementById("matchingKeywords")
+    const missingContainer = document.getElementById("missingKeywords")
 
-    // Matching keywords section
-    if (results.matchingKeywords.length > 0) {
-      const matchingSection = document.createElement("div")
-      matchingSection.className = "keyword-category"
-      matchingSection.innerHTML = `
-        <h4>
-          <span class="keyword-category-icon">✓</span>
-          Found in Your Resume (${results.matchingKeywords.length})
-        </h4>
-      `
+    if (!matchingContainer || !missingContainer) return
 
+    // Clear existing content
+    matchingContainer.innerHTML = ""
+    missingContainer.innerHTML = ""
+
+    // Add matching keywords
+    if (results.matchingKeywords && results.matchingKeywords.length > 0) {
       results.matchingKeywords.forEach((keyword) => {
-        const keywordItem = document.createElement("div")
-        keywordItem.className = "keyword-item"
-        keywordItem.innerHTML = `
-          <div class="keyword-match-icon match">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <div class="keyword-text">${keyword.text}</div>
-          <div class="keyword-frequency">${keyword.frequency}×</div>
+        const keywordElement = document.createElement("div")
+        keywordElement.className = "keyword-match"
+        keywordElement.innerHTML = `
+          <span class="keyword-text">${keyword.text}</span>
+          <span class="keyword-frequency">${keyword.frequency}×</span>
         `
-        matchingSection.appendChild(keywordItem)
+        matchingContainer.appendChild(keywordElement)
       })
-
-      keywordAnalysis.appendChild(matchingSection)
+    } else {
+      matchingContainer.innerHTML = "<p class='empty-list'>No matching keywords found</p>"
     }
 
-    // Missing keywords section
-    if (results.missingKeywords.length > 0) {
-      const missingSection = document.createElement("div")
-      missingSection.className = "keyword-category"
-      missingSection.innerHTML = `
-        <h4>
-          <span class="keyword-category-icon">✗</span>
-          Missing from Your Resume (${results.missingKeywords.length})
-        </h4>
-      `
-
+    // Add missing keywords
+    if (results.missingKeywords && results.missingKeywords.length > 0) {
       results.missingKeywords.forEach((keyword) => {
-        const keywordItem = document.createElement("div")
-        keywordItem.className = "keyword-item"
-        keywordItem.innerHTML = `
-          <div class="keyword-match-icon missing">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </div>
-          <div class="keyword-text">${keyword}</div>
+        const keywordElement = document.createElement("div")
+        keywordElement.className = "keyword-miss"
+        keywordElement.innerHTML = `
+          <span class="keyword-text">${keyword}</span>
+          <button class="keyword-add" data-keyword="${keyword}">Add</button>
         `
-        missingSection.appendChild(keywordItem)
+
+        // Add event listener to add button
+        keywordElement.querySelector(".keyword-add").addEventListener("click", () => {
+          if (window.ResumeEditor) {
+            // Use the editor's function to add the keyword
+            const editorState = window.ResumeEditor.getState()
+            if (editorState && typeof editorState.addKeywordToResume === "function") {
+              editorState.addKeywordToResume(keyword)
+            } else {
+              // Fallback - add to editor directly
+              const editor = document.getElementById("resumeEditor")
+              if (editor) {
+                editor.value = editor.value + "\n• " + keyword
+                // Trigger analysis
+                window.ResumeEditor.analyze()
+              }
+            }
+          }
+        })
+
+        missingContainer.appendChild(keywordElement)
       })
-
-      keywordAnalysis.appendChild(missingSection)
+    } else {
+      missingContainer.innerHTML = "<p class='empty-list'>No missing keywords found</p>"
     }
-  }
-
-  /**
-   * Displays suggestions in the UI
-   */
-  function displaySuggestions(suggestions) {
-    suggestionsList.innerHTML = ""
-
-    suggestions.forEach((suggestion) => {
-      const li = document.createElement("li")
-      li.textContent = suggestion
-      suggestionsList.appendChild(li)
-    })
-  }
-
-  /**
-   * Displays resume preview with highlighted keywords
-   */
-  function displayResumePreview(text, results) {
-    // Get all matching keywords
-    const keywords = results.matchingKeywords.map((k) => k.text)
-
-    // Highlight keywords in text
-    const highlightedText = window.highlightKeywords(text, keywords)
-
-    // Add some basic styling
-    resumePreview.innerHTML = `
-      <style>
-        .highlight {
-          background-color: rgba(74, 108, 247, 0.2);
-          padding: 0 2px;
-          border-radius: 2px;
-        }
-      </style>
-      ${highlightedText}
-    `
   }
 
   /**
@@ -494,7 +457,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       // Get the current text from the editor if it's initialized
-      const currentText = editorInitialized ? window.ResumeEditor.getState().currentText : resumeData.text
+      let currentText = resumeData.text
+
+      if (editorInitialized && window.ResumeEditor) {
+        const editorState = window.ResumeEditor.getState()
+        if (editorState && editorState.currentText) {
+          currentText = editorState.currentText
+        }
+      }
+
+      if (!window.createOptimizedPDF) {
+        throw new Error("PDF creation function not loaded")
+      }
 
       const pdfBlob = await window.createOptimizedPDF(currentText, analysisResults)
 
@@ -509,14 +483,13 @@ document.addEventListener("DOMContentLoaded", () => {
       URL.revokeObjectURL(url)
 
       // Track event
-      if (typeof gtag === "function") {
-        gtag("event", "download_optimized_pdf", {
-          event_category: "engagement",
-          file_type: resumeData.fileType,
-        })
-      }
+      gtag("event", "download_optimized_pdf", {
+        event_category: "engagement",
+        file_type: resumeData.fileType,
+      })
     } catch (error) {
-      alert("Error creating optimized PDF: " + error.message)
+      console.error("PDF creation error:", error)
+      alert("Error creating optimized PDF: " + (error.message || "Unknown error"))
     }
   }
 
@@ -526,30 +499,46 @@ document.addEventListener("DOMContentLoaded", () => {
   function saveAnalysisToLocalStorage() {
     if (!analysisResults) return
 
-    // Get the current text from the editor if it's initialized
-    const currentText = editorInitialized ? window.ResumeEditor.getState().currentText : resumeData.text
+    try {
+      // Get the current text from the editor if it's initialized
+      let currentText = resumeData.text
+      let appliedSuggestions = []
 
-    const dataToSave = {
-      resumeText: resumeData.text,
-      optimizedText: currentText,
-      jobDescription: jobDescription.value,
-      additionalKeywords,
-      analysisResults,
-      fileType: resumeData.fileType,
-      jobMetadata,
-      appliedSuggestions: editorInitialized ? window.ResumeEditor.getState().appliedSuggestions : [],
-      timestamp: new Date().toISOString(),
-    }
+      if (editorInitialized && window.ResumeEditor) {
+        const editorState = window.ResumeEditor.getState()
+        if (editorState) {
+          if (editorState.currentText) {
+            currentText = editorState.currentText
+          }
+          if (editorState.appliedSuggestions) {
+            appliedSuggestions = editorState.appliedSuggestions
+          }
+        }
+      }
 
-    localStorage.setItem("resumeOptimizerData", JSON.stringify(dataToSave))
-    alert("Analysis saved! You can come back later to continue working on it.")
+      const dataToSave = {
+        resumeText: resumeData.text,
+        optimizedText: currentText,
+        jobDescription: jobDescription.value,
+        additionalKeywords,
+        analysisResults,
+        fileType: resumeData.fileType,
+        jobMetadata,
+        appliedSuggestions,
+        timestamp: new Date().toISOString(),
+      }
 
-    // Track event
-    if (typeof gtag === "function") {
+      localStorage.setItem("resumeOptimizerData", JSON.stringify(dataToSave))
+      alert("Analysis saved! You can come back later to continue working on it.")
+
+      // Track event
       gtag("event", "save_analysis", {
         event_category: "engagement",
         file_type: resumeData.fileType,
       })
+    } catch (error) {
+      console.error("Save error:", error)
+      alert("Error saving analysis: " + (error.message || "Unknown error"))
     }
   }
 
@@ -557,16 +546,18 @@ document.addEventListener("DOMContentLoaded", () => {
    * Initializes the app from data in local storage
    */
   function initFromLocalStorage() {
-    const savedData = localStorage.getItem("resumeOptimizerData")
-    if (!savedData) return
-
     try {
+      const savedData = localStorage.getItem("resumeOptimizerData")
+      if (!savedData) return
+
       const data = JSON.parse(savedData)
 
       // Ask user if they want to load saved data
       if (confirm("We found a previously saved analysis. Would you like to load it?")) {
         // Set job description
-        jobDescription.value = data.jobDescription || ""
+        if (data.jobDescription) {
+          jobDescription.value = data.jobDescription
+        }
 
         // Set additional keywords
         if (data.additionalKeywords && Array.isArray(data.additionalKeywords)) {
@@ -592,12 +583,15 @@ document.addEventListener("DOMContentLoaded", () => {
           analysisResults = data.analysisResults
           checkAnalyzeButtonState()
           initialMessage.classList.add("hidden")
+          resultsArea.classList.remove("hidden")
           displayResults(analysisResults)
 
           // Initialize the resume editor with saved data
-          if (data.optimizedText) {
-            window.ResumeEditor.init(data.optimizedText, analysisResults)
-            editorInitialized = true
+          if (data.optimizedText && window.ResumeEditor) {
+            setTimeout(() => {
+              window.ResumeEditor.init(data.optimizedText, analysisResults)
+              editorInitialized = true
+            }, 500) // Short delay to ensure DOM is ready
           }
         }
       }
@@ -608,4 +602,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Listen for job description changes to enable/disable analyze button
   jobDescription.addEventListener("input", checkAnalyzeButtonState)
+
+  // Debug helper - expose key functions to window for troubleshooting
+  window.resumeOptimizerDebug = {
+    analyzeResume,
+    displayResults,
+    resumeData,
+    getEditorInitialized: () => editorInitialized,
+    getAnalysisResults: () => analysisResults,
+  }
 })

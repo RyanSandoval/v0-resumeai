@@ -30,6 +30,9 @@
     isAnalyzing: false,
     changesSaved: true,
     analysisTimeout: null,
+
+    // Add functions to the state for external access
+    addKeywordToResume: null, // Will be set during initialization
   }
 
   /**
@@ -38,10 +41,12 @@
    * @param {Object} initialAnalysis - Initial analysis results
    */
   function initResumeEditor(resumeText, initialAnalysis) {
+    console.log("Initializing resume editor")
+
     // Store initial state
-    editorState.originalText = resumeText
-    editorState.currentText = resumeText
-    editorState.analysisResults = initialAnalysis
+    editorState.originalText = resumeText || ""
+    editorState.currentText = resumeText || ""
+    editorState.analysisResults = initialAnalysis || null
 
     // Set up the editor
     setupEditor()
@@ -53,10 +58,17 @@
     setupSuggestionHandlers()
 
     // Generate initial suggestions
-    generateSuggestions(initialAnalysis)
+    if (initialAnalysis) {
+      generateSuggestions(initialAnalysis)
+    }
 
     // Update UI with initial state
     updateUI()
+
+    // Set up the addKeywordToResume function for external access
+    editorState.addKeywordToResume = addKeywordToResume
+
+    console.log("Resume editor initialized successfully")
   }
 
   /**
@@ -64,7 +76,10 @@
    */
   function setupEditor() {
     const editor = document.getElementById("resumeEditor")
-    if (!editor) return
+    if (!editor) {
+      console.error("Resume editor element not found!")
+      return
+    }
 
     // Set initial content
     editor.value = editorState.currentText
@@ -77,6 +92,8 @@
 
     // Set up keyboard shortcuts
     editor.addEventListener("keydown", handleKeyboardShortcuts)
+
+    console.log("Editor setup complete")
   }
 
   /**
@@ -154,13 +171,21 @@
 
     try {
       // Get job description
-      const jobDescription = document.getElementById("jobDescription").value
+      const jobDescription = document.getElementById("jobDescription")
+      if (!jobDescription) {
+        throw new Error("Job description element not found")
+      }
 
       // Get additional keywords
       const additionalKeywords = getAdditionalKeywords()
 
+      // Check if analysis function exists
+      if (typeof window.analyzeKeywordMatch !== "function") {
+        throw new Error("Analysis function not available")
+      }
+
       // Perform analysis
-      const results = window.analyzeKeywordMatch(editorState.currentText, jobDescription, additionalKeywords)
+      const results = window.analyzeKeywordMatch(editorState.currentText, jobDescription.value, additionalKeywords)
 
       // Update state with new results
       editorState.analysisResults = results
@@ -174,12 +199,85 @@
       // Update analysis status
       updateAnalysisStatus("Analysis complete")
       setTimeout(() => updateAnalysisStatus(""), 2000)
+
+      // Update the main score display
+      updateMainScoreDisplay(results)
+
+      // Update keyword lists
+      updateKeywordLists(results)
     } catch (error) {
       console.error("Error analyzing resume:", error)
-      updateAnalysisStatus("Analysis failed")
+      updateAnalysisStatus("Analysis failed: " + (error.message || "Unknown error"))
     } finally {
       // Reset analyzing state
       editorState.isAnalyzing = false
+    }
+  }
+
+  /**
+   * Update the main score display in the results area
+   */
+  function updateMainScoreDisplay(results) {
+    if (!results) return
+
+    const scoreCircle = document.getElementById("scoreCircle")
+    const scoreText = document.getElementById("scoreText")
+
+    if (scoreCircle && scoreText) {
+      scoreCircle.style.strokeDasharray = `${results.score}, 100`
+      scoreText.textContent = `${results.score}%`
+    }
+  }
+
+  /**
+   * Update the keyword lists in the main UI
+   */
+  function updateKeywordLists(results) {
+    if (!results) return
+
+    const matchingContainer = document.getElementById("matchingKeywords")
+    const missingContainer = document.getElementById("missingKeywords")
+
+    if (!matchingContainer || !missingContainer) return
+
+    // Clear existing content
+    matchingContainer.innerHTML = ""
+    missingContainer.innerHTML = ""
+
+    // Add matching keywords
+    if (results.matchingKeywords && results.matchingKeywords.length > 0) {
+      results.matchingKeywords.forEach((keyword) => {
+        const keywordElement = document.createElement("div")
+        keywordElement.className = "keyword-match"
+        keywordElement.innerHTML = `
+          <span class="keyword-text">${keyword.text}</span>
+          <span class="keyword-frequency">${keyword.frequency}×</span>
+        `
+        matchingContainer.appendChild(keywordElement)
+      })
+    } else {
+      matchingContainer.innerHTML = "<p class='empty-list'>No matching keywords found</p>"
+    }
+
+    // Add missing keywords
+    if (results.missingKeywords && results.missingKeywords.length > 0) {
+      results.missingKeywords.forEach((keyword) => {
+        const keywordElement = document.createElement("div")
+        keywordElement.className = "keyword-miss"
+        keywordElement.innerHTML = `
+          <span class="keyword-text">${keyword}</span>
+          <button class="keyword-add" data-keyword="${keyword}">Add</button>
+        `
+
+        // Add event listener to add button
+        keywordElement.querySelector(".keyword-add").addEventListener("click", () => {
+          addKeywordToResume(keyword)
+        })
+
+        missingContainer.appendChild(keywordElement)
+      })
+    } else {
+      missingContainer.innerHTML = "<p class='empty-list'>No missing keywords found</p>"
     }
   }
 
@@ -334,10 +432,10 @@
    */
   function identifyWeakSections(text) {
     const sections = ["summary", "experience", "education", "skills", "projects", "certifications"]
+    const lowercaseText = text.toLowerCase()
 
     return sections.filter((section) => {
-      const regex = new RegExp(`\\b${section}\\b`, "i")
-      return !regex.test(text) || text.match(regex).length < 2
+      return !lowercaseText.includes(section.toLowerCase()) || lowercaseText.split(section.toLowerCase()).length < 2
     })
   }
 
@@ -364,10 +462,11 @@
       "generated",
     ]
 
+    const lowercaseText = text.toLowerCase()
     let count = 0
+
     strongVerbs.forEach((verb) => {
-      const regex = new RegExp(`\\b${verb}\\b`, "i")
-      if (regex.test(text)) {
+      if (lowercaseText.includes(verb)) {
         count++
       }
     })
@@ -392,7 +491,7 @@
    * @returns {boolean} - Whether the resume uses bullet points
    */
   function hasBulletPoints(text) {
-    return text.includes("•") || (text.includes("-") && text.match(/\n[-•]/g))
+    return text.includes("•") || (text.includes("-") && /\n\s*-/.test(text))
   }
 
   /**
@@ -400,12 +499,19 @@
    * @param {string} keyword - The keyword to add
    */
   function addKeywordToResume(keyword) {
+    if (!keyword) return
+
+    console.log("Adding keyword to resume:", keyword)
+
     // Find appropriate section to add keyword
     const section = findBestSectionForKeyword(keyword)
 
     // Get editor
     const editor = document.getElementById("resumeEditor")
-    if (!editor) return
+    if (!editor) {
+      console.error("Editor element not found")
+      return
+    }
 
     // Find section in text
     const text = editor.value
@@ -518,6 +624,12 @@
    * @param {Array<string>} keywords - The keywords to choose from
    */
   function showKeywordSelectionDialog(keywords) {
+    // Remove any existing dialogs
+    const existingDialog = document.querySelector(".keyword-selection-dialog")
+    if (existingDialog) {
+      document.body.removeChild(existingDialog)
+    }
+
     // Create modal dialog
     const dialog = document.createElement("div")
     dialog.className = "keyword-selection-dialog"
@@ -557,6 +669,12 @@
    * Show action verb suggestions
    */
   function showActionVerbSuggestions() {
+    // Remove any existing dialogs
+    const existingDialog = document.querySelector(".action-verb-dialog")
+    if (existingDialog) {
+      document.body.removeChild(existingDialog)
+    }
+
     // Create modal dialog
     const dialog = document.createElement("div")
     dialog.className = "action-verb-dialog"
@@ -609,9 +727,16 @@
     dialog.querySelectorAll(".verb").forEach((verb) => {
       verb.addEventListener("click", () => {
         // Copy to clipboard
-        navigator.clipboard.writeText(verb.textContent)
-        verb.classList.add("copied")
-        setTimeout(() => verb.classList.remove("copied"), 1000)
+        navigator.clipboard
+          .writeText(verb.textContent)
+          .then(() => {
+            verb.classList.add("copied")
+            setTimeout(() => verb.classList.remove("copied"), 1000)
+          })
+          .catch((err) => {
+            console.error("Failed to copy text: ", err)
+            alert("Failed to copy to clipboard. Please copy manually.")
+          })
       })
     })
 
@@ -630,6 +755,12 @@
    * Show quantification examples
    */
   function showQuantificationExamples() {
+    // Remove any existing dialogs
+    const existingDialog = document.querySelector(".quantification-dialog")
+    if (existingDialog) {
+      document.body.removeChild(existingDialog)
+    }
+
     // Create modal dialog
     const dialog = document.createElement("div")
     dialog.className = "quantification-dialog"
@@ -838,7 +969,10 @@
    */
   function setupViewModeToggles() {
     const toggles = document.querySelectorAll(".view-mode-toggle")
-    if (!toggles.length) return
+    if (!toggles.length) {
+      console.warn("View mode toggles not found")
+      return
+    }
 
     toggles.forEach((toggle) => {
       toggle.addEventListener("click", () => {
@@ -871,7 +1005,10 @@
     const editor = document.getElementById("resumeEditor")
     const comparison = document.getElementById("resumeComparison")
 
-    if (!editorContainer || !editor || !comparison) return
+    if (!editorContainer || !editor || !comparison) {
+      console.error("Editor container, editor, or comparison element not found")
+      return
+    }
 
     // Reset classes
     editorContainer.className = "resume-editor-container"
@@ -933,6 +1070,10 @@
    * @returns {string} - HTML with highlighted differences
    */
   function generateDiffView(original, current) {
+    if (!original || !current) {
+      return "<p>Cannot generate comparison - missing original or current text</p>"
+    }
+
     // Simple diff implementation
     const originalLines = original.split("\n")
     const currentLines = current.split("\n")
@@ -1017,9 +1158,13 @@
    * @returns {boolean} - Whether the lines are similar
    */
   function areSimilarLines(line1, line2) {
+    if (!line1 || !line2) return false
+
     // Simple implementation - check if they share a significant portion of words
     const words1 = line1.split(/\s+/).filter((w) => w.length > 3)
     const words2 = line2.split(/\s+/).filter((w) => w.length > 3)
+
+    if (words1.length === 0 || words2.length === 0) return false
 
     let matchCount = 0
     words1.forEach((word) => {
@@ -1077,7 +1222,10 @@
    */
   function updateSuggestions() {
     const suggestionsContainer = document.getElementById("improvementSuggestions")
-    if (!suggestionsContainer) return
+    if (!suggestionsContainer) {
+      console.warn("Suggestions container not found")
+      return
+    }
 
     // Clear existing suggestions
     suggestionsContainer.innerHTML = ""
@@ -1119,43 +1267,57 @@
     const matchingContainer = document.getElementById("matchingKeywords")
     const missingContainer = document.getElementById("missingKeywords")
 
-    if (!matchingContainer || !missingContainer) return
+    if (!matchingContainer || !missingContainer) {
+      console.warn("Keyword containers not found")
+      return
+    }
 
     // Update matching keywords
     matchingContainer.innerHTML = ""
-    editorState.analysisResults.matchingKeywords.forEach((keyword) => {
-      const keywordElement = document.createElement("div")
-      keywordElement.className = "keyword-match"
-      keywordElement.innerHTML = `
-        <span class="keyword-text">${keyword.text}</span>
-        <span class="keyword-frequency">${keyword.frequency}×</span>
-      `
-      matchingContainer.appendChild(keywordElement)
-    })
+    if (editorState.analysisResults.matchingKeywords && editorState.analysisResults.matchingKeywords.length > 0) {
+      editorState.analysisResults.matchingKeywords.forEach((keyword) => {
+        const keywordElement = document.createElement("div")
+        keywordElement.className = "keyword-match"
+        keywordElement.innerHTML = `
+          <span class="keyword-text">${keyword.text}</span>
+          <span class="keyword-frequency">${keyword.frequency}×</span>
+        `
+        matchingContainer.appendChild(keywordElement)
+      })
+    } else {
+      matchingContainer.innerHTML = "<p class='empty-list'>No matching keywords found</p>"
+    }
 
     // Update missing keywords
     missingContainer.innerHTML = ""
-    editorState.analysisResults.missingKeywords.forEach((keyword) => {
-      const keywordElement = document.createElement("div")
-      keywordElement.className = "keyword-miss"
-      keywordElement.innerHTML = `
-        <span class="keyword-text">${keyword}</span>
-        <button class="keyword-add" data-keyword="${keyword}">Add</button>
-      `
+    if (editorState.analysisResults.missingKeywords && editorState.analysisResults.missingKeywords.length > 0) {
+      editorState.analysisResults.missingKeywords.forEach((keyword) => {
+        const keywordElement = document.createElement("div")
+        keywordElement.className = "keyword-miss"
+        keywordElement.innerHTML = `
+          <span class="keyword-text">${keyword}</span>
+          <button class="keyword-add" data-keyword="${keyword}">Add</button>
+        `
 
-      // Add event listener
-      keywordElement.querySelector(".keyword-add").addEventListener("click", () => {
-        addKeywordToResume(keyword)
+        // Add event listener to add button
+        keywordElement.querySelector(".keyword-add").addEventListener("click", () => {
+          addKeywordToResume(keyword)
+        })
+
+        missingContainer.appendChild(keywordElement)
       })
-
-      missingContainer.appendChild(keywordElement)
-    })
+    } else {
+      missingContainer.innerHTML = "<p class='empty-list'>No missing keywords found</p>"
+    }
   }
 
   // Expose functions to global scope
   window.ResumeEditor = {
     init: initResumeEditor,
     analyze: analyzeResume,
-    getState: () => ({ ...editorState }),
+    getState: () => ({
+      ...editorState,
+      addKeywordToResume, // Include the function for external access
+    }),
   }
 })()
