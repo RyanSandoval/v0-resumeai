@@ -2,135 +2,122 @@
  * PDF Utilities for Resume Optimizer
  */
 
-// Import PDF.js library
-import * as pdfjsLib from "pdfjs-dist"
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js"
+;(() => {
+  // Declare pdfjsLib in the scope of the module
+  const pdfjsLib = window.pdfjsLib
 
-/**
- * Extracts text from a PDF file
- * @param {File} file - The PDF file
- * @returns {Promise<string>} - The extracted text
- */
-async function extractTextFromPDF(file) {
-  try {
-    // Read the file as ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer()
+  /**
+   * Extracts text from a PDF file
+   * @param {File} file - The PDF file
+   * @returns {Promise<string>} - The extracted text
+   */
+  async function extractTextFromPDF(file) {
+    try {
+      // Check if PDF.js is loaded
+      if (!pdfjsLib) {
+        throw new Error("PDF.js library not loaded. Please refresh the page and try again.")
+      }
 
-    // Load the PDF document
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      // Set worker source
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js"
 
-    // Get total number of pages
-    const numPages = pdf.numPages
-    let fullText = ""
+      // Read the file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer()
 
-    // Extract text from each page
-    for (let i = 1; i <= numPages; i++) {
-      const page = await pdf.getPage(i)
-      const textContent = await page.getTextContent()
+      // Load the PDF document
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
 
-      // Join the text items
-      const pageText = textContent.items.map((item) => item.str).join(" ")
+      // Extract text from each page
+      let text = ""
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i)
+        const content = await page.getTextContent()
+        const pageText = content.items.map((item) => item.str).join(" ")
+        text += pageText + "\n\n"
+      }
 
-      fullText += pageText + "\n\n"
+      return text
+    } catch (error) {
+      console.error("Error extracting text from PDF:", error)
+      throw new Error("Failed to extract text from PDF. Please try another file.")
+    }
+  }
+
+  /**
+   * Creates an optimized PDF from resume text and analysis
+   * @param {string} resumeText - The resume text
+   * @param {Object} analysis - The analysis results
+   * @returns {Blob} - A text file blob (placeholder for PDF)
+   */
+  function createOptimizedPDF(resumeText, analysis) {
+    // This is a placeholder implementation
+    // In a real implementation, this would generate a proper PDF
+
+    // For now, we'll just return a text file with suggestions
+    const content = [
+      "OPTIMIZED RESUME",
+      "================",
+      "",
+      `Match Score: ${analysis.score}%`,
+      "",
+      "MATCHING KEYWORDS:",
+      ...analysis.matchingKeywords.map((k) => `- ${k.text} (${k.frequency}×)`),
+      "",
+      "MISSING KEYWORDS:",
+      ...analysis.missingKeywords.map((k) => `- ${k}`),
+      "",
+      "SUGGESTIONS:",
+      ...analysis.suggestions,
+      "",
+      "RESUME CONTENT:",
+      resumeText,
+    ].join("\n")
+
+    return new Blob([content], { type: "text/plain" })
+  }
+
+  /**
+   * Highlights keywords in text
+   * @param {string} text - The text to highlight keywords in
+   * @param {Array<Object>} keywords - The keywords to highlight
+   * @returns {string} - HTML with highlighted keywords
+   */
+  function highlightKeywords(text, keywords) {
+    if (!text || !keywords || keywords.length === 0) {
+      return text
     }
 
-    return fullText
-  } catch (error) {
-    console.error("Error extracting text from PDF:", error)
-    throw new Error("Failed to extract text from PDF. Please try another file.")
-  }
-}
+    // Escape HTML special characters
+    let highlightedText = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;")
 
-/**
- * Highlights keywords in text
- * @param {string} text - The text to highlight
- * @param {Array} keywords - Keywords to highlight
- * @returns {string} - HTML with highlighted keywords
- */
-function highlightKeywords(text, keywords) {
-  if (!text || !keywords || keywords.length === 0) return text
+    // Replace newlines with <br> tags
+    highlightedText = highlightedText.replace(/\n/g, "<br>")
 
-  // Escape HTML special characters
-  let safeText = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
+    // Highlight each keyword
+    keywords.forEach((keyword) => {
+      const keywordText = typeof keyword === "string" ? keyword : keyword.text
+      if (!keywordText) return
 
-  // Sort keywords by length (longest first) to avoid partial matches
-  const sortedKeywords = [...keywords].sort((a, b) => b.length - a.length)
+      // Escape special characters in the keyword for use in regex
+      const escapedKeyword = keywordText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
-  // Create a regex pattern for all keywords
-  const pattern = sortedKeywords.map((keyword) => escapeRegExp(keyword)).join("|")
+      // Create regex to match the keyword (case insensitive, word boundaries)
+      const regex = new RegExp(`\\b${escapedKeyword}\\b`, "gi")
 
-  // Only proceed if we have keywords to highlight
-  if (pattern) {
-    const regex = new RegExp(`\\b(${pattern})\\b`, "gi")
-    safeText = safeText.replace(regex, '<span class="highlight">$1</span>')
-  }
-
-  // Convert newlines to <br> tags
-  return safeText.replace(/\n/g, "<br>")
-}
-
-/**
- * Escapes special characters in a string for use in a regular expression
- * @param {string} string - The string to escape
- * @returns {string} - The escaped string
- */
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-/**
- * Creates an optimized version of the resume text
- * @param {string} resumeText - The original resume text
- * @param {Object} analysisResults - The analysis results
- * @returns {Promise<Blob>} - A Blob containing the optimized resume
- */
-async function createOptimizedPDF(resumeText, analysisResults) {
-  // For now, we'll just create a text file with suggestions
-  // In a more advanced version, this would generate an actual PDF
-
-  const missingKeywords = analysisResults.missingKeywords || []
-  const suggestions = analysisResults.suggestions || []
-
-  let optimizedText = "RESUME OPTIMIZATION REPORT\n"
-  optimizedText += "==========================\n\n"
-
-  optimizedText += `Match Score: ${analysisResults.score}%\n\n`
-
-  optimizedText += "MISSING KEYWORDS:\n"
-  optimizedText += "----------------\n"
-  if (missingKeywords.length > 0) {
-    missingKeywords.forEach((keyword) => {
-      optimizedText += `- ${keyword}\n`
+      // Replace with highlighted version
+      highlightedText = highlightedText.replace(regex, (match) => `<span class="highlight">${match}</span>`)
     })
-  } else {
-    optimizedText += "No missing keywords found.\n"
+
+    return highlightedText
   }
 
-  optimizedText += "\nSUGGESTIONS:\n"
-  optimizedText += "-----------\n"
-  if (suggestions.length > 0) {
-    suggestions.forEach((suggestion) => {
-      optimizedText += `- ${suggestion}\n`
-    })
-  } else {
-    optimizedText += "No suggestions available.\n"
-  }
-
-  optimizedText += "\nORIGINAL RESUME TEXT:\n"
-  optimizedText += "--------------------\n"
-  optimizedText += resumeText
-
-  // Create a Blob with the text
-  return new Blob([optimizedText], { type: "text/plain" })
-}
-
-// Export functions to global scope for use in other scripts
-window.extractTextFromPDF = extractTextFromPDF
-window.highlightKeywords = highlightKeywords
-window.createOptimizedPDF = createOptimizedPDF
+  // Expose functions to global scope
+  window.extractTextFromPDF = extractTextFromPDF
+  window.createOptimizedPDF = createOptimizedPDF
+  window.highlightKeywords = highlightKeywords
+})()

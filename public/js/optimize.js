@@ -50,6 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     company: "",
     source: "",
   }
+  let editorInitialized = false
 
   // Initialize from local storage if available
   initFromLocalStorage()
@@ -341,6 +342,12 @@ document.addEventListener("DOMContentLoaded", () => {
       // Update UI with results
       displayResults(analysisResults)
 
+      // Initialize the resume editor if not already initialized
+      if (!editorInitialized) {
+        window.ResumeEditor.init(resumeData.text, analysisResults)
+        editorInitialized = true
+      }
+
       // Track event
       if (typeof gtag === "function") {
         gtag("event", "resume_analysis", {
@@ -486,7 +493,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!analysisResults) return
 
     try {
-      const pdfBlob = await window.createOptimizedPDF(resumeData.text, analysisResults)
+      // Get the current text from the editor if it's initialized
+      const currentText = editorInitialized ? window.ResumeEditor.getState().currentText : resumeData.text
+
+      const pdfBlob = await window.createOptimizedPDF(currentText, analysisResults)
 
       // Create download link
       const url = URL.createObjectURL(pdfBlob)
@@ -516,13 +526,18 @@ document.addEventListener("DOMContentLoaded", () => {
   function saveAnalysisToLocalStorage() {
     if (!analysisResults) return
 
+    // Get the current text from the editor if it's initialized
+    const currentText = editorInitialized ? window.ResumeEditor.getState().currentText : resumeData.text
+
     const dataToSave = {
       resumeText: resumeData.text,
+      optimizedText: currentText,
       jobDescription: jobDescription.value,
       additionalKeywords,
       analysisResults,
       fileType: resumeData.fileType,
       jobMetadata,
+      appliedSuggestions: editorInitialized ? window.ResumeEditor.getState().appliedSuggestions : [],
       timestamp: new Date().toISOString(),
     }
 
@@ -578,6 +593,12 @@ document.addEventListener("DOMContentLoaded", () => {
           checkAnalyzeButtonState()
           initialMessage.classList.add("hidden")
           displayResults(analysisResults)
+
+          // Initialize the resume editor with saved data
+          if (data.optimizedText) {
+            window.ResumeEditor.init(data.optimizedText, analysisResults)
+            editorInitialized = true
+          }
         }
       }
     } catch (error) {
