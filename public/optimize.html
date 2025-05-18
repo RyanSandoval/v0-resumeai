@@ -6,6 +6,7 @@
   <title>Resume Optimizer</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/resume-editor.css">
+  <link rel="stylesheet" href="css/image-handling.css">
   <!-- Include PDF.js for PDF parsing (optional) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
   <!-- Include mammoth.js for Word document parsing (optional) -->
@@ -35,8 +36,11 @@
   <main>
     <section class="page-header">
       <div class="container">
-        <h1>Resume Optimizer</h1>
-        <p>Upload your resume and a job description to get personalized optimization suggestions.</p>
+        <h2>Optimize Your Resume</h2>
+        <p>Upload your resume and a job description to get personalized optimization suggestions</p>
+        <div class="image-container medium">
+          <img src="images/resume-hero.png" alt="Resume Optimization" class="hero-image">
+        </div>
       </div>
     </section>
 
@@ -115,5 +119,6 @@
   <script src="js/keyword-analyzer.js"></script>
   <script src="js/resume-editor.js"></script>
   <script src="js/editor-diagnostics.js"></script>
+  <script src="js/image-optimizer.js"></script>
 </body>
 </html>

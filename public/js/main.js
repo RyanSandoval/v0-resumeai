@@ -1,9 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Declare gtag as a global function if it's not already defined
+  let gtag = window.gtag // Declare gtag variable
   if (typeof gtag === "undefined") {
     window.gtag = () => {
       console.log("gtag function called with arguments:", arguments)
     }
+    gtag = window.gtag // Reassign gtag variable
   }
 
   // Track page views
@@ -112,4 +114,44 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })
   })
+})
+
+// Image handling functions
+document.addEventListener("DOMContentLoaded", () => {
+  // Find all images that might need responsive handling
+  const images = document.querySelectorAll(".hero-image, .feature-image, .image-container img")
+
+  // Add load event listeners to handle image sizing
+  images.forEach((img) => {
+    // If image is already loaded, adjust it
+    if (img.complete) {
+      handleImageLoad(img)
+    } else {
+      // Otherwise wait for it to load
+      img.addEventListener("load", function () {
+        handleImageLoad(this)
+      })
+    }
+
+    // Add error handling for images
+    img.addEventListener("error", function () {
+      console.warn("Failed to load image:", this.src)
+      this.style.display = "none"
+    })
+  })
+
+  function handleImageLoad(img) {
+    // Check if image is too large
+    if (img.naturalWidth > 1200 || img.naturalHeight > 800) {
+      console.info("Large image detected, applying constraints:", img.src)
+
+      // Add a class to help with styling
+      img.classList.add("large-image")
+
+      // Ensure parent container has proper overflow handling
+      if (img.parentElement) {
+        img.parentElement.style.overflow = "hidden"
+      }
+    }
+  }
 })

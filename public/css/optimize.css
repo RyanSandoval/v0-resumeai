@@ -436,3 +436,61 @@ button:disabled {
 .supported-sites strong {
   font-weight: 600;
 }
+
+/* Image handling and responsive fixes */
+.page-header img,
+.tool-section img,
+.resume-preview img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.hero-image {
+  max-height: 300px;
+  width: auto;
+  margin: 0 auto 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+.feature-image {
+  max-height: 200px;
+  width: auto;
+  margin: 1rem auto;
+}
+
+.image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.image-container.small {
+  max-height: 150px;
+}
+
+.image-container.medium {
+  max-height: 250px;
+}
+
+.image-container.large {
+  max-height: 350px;
+}
+
+/* Ensure images don't break layout on small screens */
+@media (max-width: 768px) {
+  .hero-image {
+    max-height: 200px;
+  }
+
+  .feature-image {
+    max-height: 150px;
+  }
+
+  .image-container.large {
+    max-height: 250px;
+  }
+}
