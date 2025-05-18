@@ -133,12 +133,13 @@ p {
 
 /* Header */
 header {
-  background-color: var(--white);
+  background-color: #f8f9fa;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 1rem 0;
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid #e9ecef;
 }
 
 header .container {
@@ -147,14 +148,26 @@ header .container {
   align-items: center;
 }
 
-.logo h1 {
+.logo {
+  display: flex;
+  align-items: center;
   font-size: 1.5rem;
-  margin-bottom: 0;
+  font-weight: bold;
+}
+
+.logo img {
+  max-width: 50px;
+  max-height: 50px;
+  width: auto;
+  height: auto;
+  margin-right: 10px;
 }
 
 .logo a {
-  color: var(--text-color);
+  display: flex;
+  align-items: center;
   text-decoration: none;
+  color: inherit;
 }
 
 nav ul {
@@ -597,6 +610,15 @@ footer {
 
   .hero h2 {
     font-size: 2rem;
+  }
+
+  .logo img {
+    max-width: 40px;
+    max-height: 40px;
+  }
+
+  .logo span {
+    font-size: 1.2rem;
   }
 }
 

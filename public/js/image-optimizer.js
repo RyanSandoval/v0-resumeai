@@ -10,8 +10,61 @@
 
   // Run on DOM content loaded
   document.addEventListener("DOMContentLoaded", () => {
+    // Fix for logo image
+    const logoImages = document.querySelectorAll(".logo img")
+    logoImages.forEach((img) => {
+      img.style.maxWidth = "50px"
+      img.style.maxHeight = "50px"
+      img.style.width = "auto"
+      img.style.height = "auto"
+
+      // Add error handling
+      img.onerror = function () {
+        this.src = "placeholder-logo.png"
+        console.warn("Logo image failed to load, using placeholder")
+      }
+    })
+
+    // Fix for hero images
+    const heroImages = document.querySelectorAll(".hero-image img")
+    heroImages.forEach((img) => {
+      img.classList.add("optimized-image")
+
+      // Add error handling
+      img.onerror = function () {
+        this.src = "images/placeholder.png"
+        console.warn("Hero image failed to load, using placeholder")
+      }
+    })
+
+    // General image optimization
+    const allImages = document.querySelectorAll("img:not(.logo img):not(.hero-image img)")
+    allImages.forEach((img) => {
+      // Skip images that already have specific handling
+      if (img.closest(".logo") || img.closest(".hero-image")) {
+        return
+      }
+
+      // Add responsive class
+      img.classList.add("responsive-image")
+
+      // Add loading attribute for better performance
+      img.loading = "lazy"
+
+      // Add error handling
+      img.onerror = function () {
+        if (this.classList.contains("critical-image")) {
+          this.src = "images/placeholder.png"
+          console.warn("Critical image failed to load, using placeholder")
+        } else {
+          this.style.display = "none"
+          console.warn("Non-critical image failed to load, hiding element")
+        }
+      }
+    })
+
     // Find all images on the page
-    const images = document.querySelectorAll("img:not(.ignore-optimize)")
+    const images = document.querySelectorAll("img:not(.ignore-optimize):not(.logo img):not(.hero-image img)")
 
     // Process each image
     images.forEach(processImage)
@@ -112,3 +165,5 @@
     })
   }
 })()
+
+console.log("Image optimizer initialized")

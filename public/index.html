@@ -20,6 +20,7 @@
   
   <!-- CSS -->
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/image-handling.css">
   
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-MEASUREMENT-ID"></script>
@@ -35,16 +36,25 @@
   <header>
     <div class="container">
       <div class="logo">
-        <h1>Resume Optimizer</h1>
+        <a href="index.html">
+          <img src="logo.png" alt="Resume Optimizer Logo" width="50" height="50">
+          <span>Resume Optimizer</span>
+        </a>
       </div>
       <nav>
         <ul>
-          <li><a href="index.html" class="active">Home</a></li>
+          <li class="active"><a href="index.html">Home</a></li>
           <li><a href="features.html">Features</a></li>
           <li><a href="about.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
           <li><a href="optimize.html" class="cta-button">Optimize Now</a></li>
         </ul>
       </nav>
+      <button class="mobile-menu-button" id="mobileMenuButton" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </div>
   </header>
 
@@ -52,15 +62,15 @@
     <section class="hero">
       <div class="container">
         <div class="hero-content">
-          <h2>Get More Interviews with an Optimized Resume</h2>
+          <h1>Get More Interviews with an Optimized Resume</h1>
           <p>Our tool analyzes your resume against job descriptions to help you stand out to recruiters and pass Applicant Tracking Systems.</p>
-          <div class="cta-buttons">
+          <div class="hero-buttons">
             <a href="optimize.html" class="button primary">Optimize My Resume</a>
             <a href="features.html" class="button secondary">Learn More</a>
           </div>
         </div>
         <div class="hero-image">
-          <img src="images/resume-hero.png" alt="Resume optimization illustration" width="500" height="400">
+          <img src="images/resume-hero.png" alt="Resume optimization illustration" class="optimized-image">
         </div>
       </div>
     </section>
@@ -169,5 +179,6 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/image-optimizer.js"></script>
 </body>
 </html>
