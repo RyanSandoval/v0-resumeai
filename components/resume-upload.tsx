@@ -13,6 +13,8 @@ import { extractTextFromFile, getSampleResume, validateResumeFile } from "@/lib/
 import { useToast } from "@/hooks/use-toast"
 import type { ResumeFile } from "@/components/resume-optimizer"
 import { generatePDFDiagnostics } from "@/lib/diagnostics/pdf-diagnostics"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ResumeUrlInput } from "@/components/resume-url-input"
 
 interface ResumeUploadProps {
   onFileSelected: (file: ResumeFile | null) => void
@@ -24,6 +26,7 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadKey, setUploadKey] = useState<number>(0) // Used to force re-render of file input
+  const [inputMethod, setInputMethod] = useState<"upload" | "url">("upload")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -192,6 +195,23 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
     })
   }
 
+  const handleResumeExtracted = (text: string) => {
+    // Create a file object from the extracted text
+    const file = new File([text], "extracted-resume.txt", { type: "text/plain" })
+
+    // Set the selected file
+    onFileSelected({
+      file,
+      text,
+      type: "txt",
+    })
+
+    toast({
+      title: "Resume extracted",
+      description: "Successfully extracted resume from URL",
+    })
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
@@ -217,43 +237,60 @@ export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps
       )}
 
       {!selectedFile ? (
-        <Card
-          className={`border-2 border-dashed ${
-            isDragging ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
-          } transition-colors duration-200`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-            <div className="mb-4 rounded-full bg-primary/10 p-3">
-              <Upload className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="mb-1 text-lg font-semibold">Drag and drop your resume</h3>
-            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-              Supports PDF, DOCX, and TXT files (max 10MB)
-            </p>
-            <div className="flex flex-col items-center gap-2">
-              <Label
-                htmlFor={`resume-upload-${uploadKey}`}
-                className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Browse Files
-              </Label>
-              <Input
-                id={`resume-upload-${uploadKey}`}
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,.txt"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isProcessing}
-                key={uploadKey}
-              />
-              {isProcessing && <p className="text-sm text-slate-500">Processing file...</p>}
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as any)}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="upload">Upload File</TabsTrigger>
+            <TabsTrigger value="url">From URL</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="upload">
+            <Card
+              className={`border-2 border-dashed ${
+                isDragging ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
+              } transition-colors duration-200`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <div className="mb-4 rounded-full bg-primary/10 p-3">
+                  <Upload className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="mb-1 text-lg font-semibold">Drag and drop your resume</h3>
+                <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+                  Supports PDF, DOCX, and TXT files (max 10MB)
+                </p>
+                <div className="flex flex-col items-center gap-2">
+                  <Label
+                    htmlFor={`resume-upload-${uploadKey}`}
+                    className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    Browse Files
+                  </Label>
+                  <Input
+                    id={`resume-upload-${uploadKey}`}
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    disabled={isProcessing}
+                    key={uploadKey}
+                  />
+                  {isProcessing && <p className="text-sm text-slate-500">Processing file...</p>}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="url">
+            <Card>
+              <CardContent className="p-6">
+                <ResumeUrlInput onResumeExtracted={handleResumeExtracted} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       ) : (
         <Card>
           <CardContent className="flex items-center justify-between p-4">
