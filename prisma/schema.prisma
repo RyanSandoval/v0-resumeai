@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,21 +10,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                String            @id @default(cuid())
+  name              String?
+  email             String?           @unique
+  emailVerified     DateTime?
+  image             String?
+  accounts          Account[]
+  sessions          Session[]
+  resumes           Resume[]
+  baselineResumes   BaselineResume[]
+  jobApplications   JobApplication[]
+  subscriptions     Subscription[]
+  featureUsage      FeatureUsage[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  role              String            @default("user") // "user", "admin"
+}
+
 model Account {
-  id                String   @id @default(cuid())
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.Text
+  id_token          String? @db.Text
   session_state     String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -36,21 +55,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  accounts Account[]
-  sessions Session[]
-  resumes  Resume[]
-  // Other relations...
-}
-
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -60,19 +64,74 @@ model VerificationToken {
 }
 
 model Resume {
-  id             String   @id @default(cuid())
-  userId         String
-  title          String   @default("Untitled Resume")
-  originalText   String   @db.Text
-  optimizedText  String   @db.Text
-  jobDescription String?  @db.Text
-  jobUrl         String?
-  keywords       String[]
-  score          Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  userId          String
+  title           String
+  content         String   @db.Text
+  optimizedContent String?  @db.Text
+  jobDescription  String?  @db.Text
+  score           Int?
+  keywords        String?  @db.Text // JSON string of keywords
+  suggestions     String?  @db.Text // JSON string of suggestions
+  templateId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobApplications JobApplication[]
 }
 
-// Other models...
+model BaselineResume {
+  id              String   @id @default(cuid())
+  userId          String
+  title           String
+  content         String   @db.Text
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model JobApplication {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String
+  company         String?
+  jobDescription  String?   @db.Text
+  jobUrl          String?
+  location        String?
+  status          String    @default("want_to_apply") // want_to_apply, applied, interviewing, offer, rejected
+  resumeId        String?
+  notes           String?   @db.Text
+  appliedDate     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume          Resume?   @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+}
+
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String
+  stripeCustomerId String?   @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId   String?
+  stripeCurrentPeriodEnd DateTime?
+  plan            String    @default("free") // free, basic, pro
+  status          String    @default("active") // active, canceled, past_due
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FeatureUsage {
+  id              String    @id @default(cuid())
+  userId          String
+  feature         String    // resume_optimization, job_application, etc.
+  count           Int       @default(0)
+  lastUsed        DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feature])
+}

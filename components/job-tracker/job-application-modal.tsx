@@ -8,12 +8,15 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { CalendarIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { createJobApplication, updateJobApplication } from "@/app/actions/job-tracker-actions"
 import { JobDescriptionInput } from "@/components/job-description-input"
+import { JobUrlScraper } from "@/components/job-url-scraper"
+import type { JobPostingData } from "@/app/actions/extract-job-posting"
 
 type JobApplication = {
   id: string
@@ -27,6 +30,7 @@ type JobApplication = {
   appliedDate: Date | null
   createdAt: Date
   updatedAt: Date
+  location?: string | null
 }
 
 interface JobApplicationModalProps {
@@ -40,9 +44,11 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
   const [company, setCompany] = useState("")
   const [jobDescription, setJobDescription] = useState("")
   const [jobUrl, setJobUrl] = useState("")
+  const [location, setLocation] = useState("")
   const [notes, setNotes] = useState("")
   const [appliedDate, setAppliedDate] = useState<Date | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeTab, setActiveTab] = useState("manual")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -51,6 +57,7 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
       setCompany(job.company || "")
       setJobDescription(job.jobDescription || "")
       setJobUrl(job.jobUrl || "")
+      setLocation(job.location || "")
       setNotes(job.notes || "")
       setAppliedDate(job.appliedDate ? new Date(job.appliedDate) : undefined)
     } else {
@@ -63,6 +70,7 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
     setCompany("")
     setJobDescription("")
     setJobUrl("")
+    setLocation("")
     setNotes("")
     setAppliedDate(undefined)
   }
@@ -88,6 +96,7 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
           company,
           jobDescription,
           jobUrl,
+          location,
           notes,
           appliedDate: appliedDate || null,
         })
@@ -112,6 +121,7 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
           company,
           jobDescription,
           jobUrl,
+          location,
           notes,
           appliedDate: appliedDate || null,
         })
@@ -142,6 +152,30 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
     }
   }
 
+  const handleJobDataExtracted = (jobData: JobPostingData) => {
+    if (jobData.title) setTitle(jobData.title)
+    if (jobData.company) setCompany(jobData.company)
+    if (jobData.jobDescription) setJobDescription(jobData.jobDescription)
+    if (jobData.location) setLocation(jobData.location)
+    if (jobData.applicationUrl) setJobUrl(jobData.applicationUrl)
+
+    // Add extracted skills to notes if available
+    if (jobData.requiredSkills && jobData.requiredSkills.length > 0) {
+      const skillsNote = `Required Skills:\n${jobData.requiredSkills.join(", ")}\n\n`
+      setNotes((prevNotes) => {
+        return prevNotes ? skillsNote + prevNotes : skillsNote
+      })
+    }
+
+    // Switch to manual tab to show the populated form
+    setActiveTab("manual")
+
+    toast({
+      title: "Job data extracted",
+      description: "The job details have been populated from the URL",
+    })
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose(false)}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -149,67 +183,95 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
           <DialogTitle>{job ? "Edit Job Application" : "Add Job Application"}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="title">Job Title *</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Software Engineer"
-            />
-          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+            <TabsTrigger value="url">Import from URL</TabsTrigger>
+          </TabsList>
 
-          <div className="grid gap-2">
-            <Label htmlFor="company">Company</Label>
-            <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Inc." />
-          </div>
+          <TabsContent value="url" className="mt-4">
+            <JobUrlScraper onJobDataExtracted={handleJobDataExtracted} />
+          </TabsContent>
 
-          <div className="grid gap-2">
-            <Label htmlFor="jobUrl">Job URL</Label>
-            <Input
-              id="jobUrl"
-              value={jobUrl}
-              onChange={(e) => setJobUrl(e.target.value)}
-              placeholder="https://example.com/job/123"
-              type="url"
-            />
-          </div>
+          <TabsContent value="manual" className="mt-4">
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Job Title *</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Software Engineer"
+                />
+              </div>
 
-          <div className="grid gap-2">
-            <Label>Applied Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn("justify-start text-left font-normal", !appliedDate && "text-muted-foreground")}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {appliedDate ? format(appliedDate, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={appliedDate} onSelect={setAppliedDate} initialFocus />
-              </PopoverContent>
-            </Popover>
-          </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company">Company</Label>
+                <Input
+                  id="company"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Acme Inc."
+                />
+              </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="jobDescription">Job Description</Label>
-            <JobDescriptionInput value={jobDescription} onChange={setJobDescription} />
-          </div>
+              <div className="grid gap-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="New York, NY (Remote)"
+                />
+              </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional notes about this application"
-              rows={3}
-            />
-          </div>
-        </div>
+              <div className="grid gap-2">
+                <Label htmlFor="jobUrl">Job URL</Label>
+                <Input
+                  id="jobUrl"
+                  value={jobUrl}
+                  onChange={(e) => setJobUrl(e.target.value)}
+                  placeholder="https://example.com/job/123"
+                  type="url"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Applied Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("justify-start text-left font-normal", !appliedDate && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {appliedDate ? format(appliedDate, "PPP") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={appliedDate} onSelect={setAppliedDate} initialFocus />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="jobDescription">Job Description</Label>
+                <JobDescriptionInput value={jobDescription} onChange={setJobDescription} />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any additional notes about this application"
+                  rows={3}
+                />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onClose(false)}>

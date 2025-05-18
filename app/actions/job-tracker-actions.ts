@@ -30,6 +30,7 @@ export async function createJobApplication({
   company,
   jobDescription,
   jobUrl,
+  location,
   notes,
   appliedDate,
 }: {
@@ -37,6 +38,7 @@ export async function createJobApplication({
   company: string
   jobDescription: string
   jobUrl: string
+  location: string
   notes: string
   appliedDate: Date | null
 }) {
@@ -54,6 +56,7 @@ export async function createJobApplication({
         company: company || null,
         jobDescription: jobDescription || null,
         jobUrl: jobUrl || null,
+        location: location || null,
         notes: notes || null,
         appliedDate,
         status: appliedDate ? "applied" : "want_to_apply",
@@ -75,6 +78,7 @@ export async function updateJobApplication({
   company,
   jobDescription,
   jobUrl,
+  location,
   notes,
   appliedDate,
 }: {
@@ -83,6 +87,7 @@ export async function updateJobApplication({
   company: string
   jobDescription: string
   jobUrl: string
+  location: string
   notes: string
   appliedDate: Date | null
 }) {
@@ -109,6 +114,7 @@ export async function updateJobApplication({
         company: company || null,
         jobDescription: jobDescription || null,
         jobUrl: jobUrl || null,
+        location: location || null,
         notes: notes || null,
         appliedDate,
         // Update status to applied if an applied date is provided and status is want_to_apply
