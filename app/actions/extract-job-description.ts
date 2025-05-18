@@ -7,6 +7,12 @@ export async function extractJobDescription(url: string): Promise<{
   jobDescription: string
   error?: string
   source?: string
+  jobTitle?: string
+  companyName?: string
+  location?: string
+  jobType?: string
+  salary?: string
+  skills?: string[]
 }> {
   try {
     // Validate URL
@@ -51,6 +57,12 @@ export async function extractJobDescription(url: string): Promise<{
     const hostname = parsedUrl.hostname.toLowerCase()
     let jobDescription = ""
     let source = ""
+    let jobTitle = ""
+    let companyName = ""
+    let location = ""
+    let jobType = ""
+    let salary = ""
+    let skills: string[] = []
 
     // Load HTML with cheerio
     const $ = load(html)
@@ -58,6 +70,24 @@ export async function extractJobDescription(url: string): Promise<{
     // Extract based on common job sites
     if (hostname.includes("linkedin.com")) {
       source = "LinkedIn"
+
+      // Extract job title
+      jobTitle =
+        $("h1.job-title").text().trim() ||
+        $(".job-details-jobs-unified-top-card__job-title").text().trim() ||
+        $("h1").first().text().trim()
+
+      // Extract company name
+      companyName =
+        $(".jobs-unified-top-card__company-name").text().trim() ||
+        $(".job-details-jobs-unified-top-card__company-name").text().trim() ||
+        $(".topcard__org-name-link").text().trim()
+
+      // Extract location
+      location =
+        $(".jobs-unified-top-card__bullet").first().text().trim() ||
+        $(".job-details-jobs-unified-top-card__bullet").first().text().trim() ||
+        $(".topcard__flavor--bullet").first().text().trim()
 
       // Try multiple selectors for LinkedIn job descriptions
       const selectors = [
@@ -107,25 +137,86 @@ export async function extractJobDescription(url: string): Promise<{
           }
         })
       }
+
+      // Extract skills (LinkedIn sometimes has them in a separate section)
+      $(".job-details-how-you-match-card__skills-item").each((_, skill) => {
+        skills.push($(skill).text().trim())
+      })
     } else if (hostname.includes("indeed.com")) {
       source = "Indeed"
+
+      // Extract job title
+      jobTitle = $(".jobsearch-JobInfoHeader-title").text().trim() || $("h1.icl-u-xs-mb--xs").text().trim()
+
+      // Extract company name
+      companyName =
+        $(".jobsearch-InlineCompanyRating-companyHeader").text().trim() ||
+        $("div[data-company-name=true]").text().trim()
+
+      // Extract location
+      location =
+        $(".jobsearch-JobInfoHeader-subtitle .jobsearch-JobInfoHeader-subtitle-location").text().trim() ||
+        $(".icl-u-xs-mt--xs").text().trim()
+
+      // Extract job type
+      jobType = $(".jobsearch-JobMetadataHeader-item").first().text().trim()
+
+      // Extract salary if available
+      salary = $(".jobsearch-JobMetadataHeader-item:contains('$')").text().trim()
+
       // Indeed job descriptions
       jobDescription = $("#jobDescriptionText").text()
     } else if (hostname.includes("glassdoor.com")) {
       source = "Glassdoor"
+
+      // Extract job title
+      jobTitle = $("h1.job-title").text().trim() || $("h1.jobTitle").text().trim()
+
+      // Extract company name
+      companyName = $(".employer-name").text().trim() || $(".employerName").text().trim()
+
+      // Extract location
+      location = $(".location").text().trim() || $(".job-location").text().trim()
+
       // Glassdoor job descriptions
       jobDescription = $(".jobDescriptionContent").text() || $(".desc").text()
     } else if (hostname.includes("monster.com")) {
       source = "Monster"
+
+      // Extract job title
+      jobTitle = $(".job-title").text().trim()
+
+      // Extract company name
+      companyName = $(".company-name").text().trim()
+
+      // Extract location
+      location = $(".location").text().trim()
+
       // Monster job descriptions
       jobDescription = $(".job-description").text()
     } else if (hostname.includes("ziprecruiter.com")) {
       source = "ZipRecruiter"
+
+      // Extract job title
+      jobTitle = $("h1.job_title").text().trim()
+
+      // Extract company name
+      companyName = $(".hiring_company_text").text().trim()
+
+      // Extract location
+      location = $(".location").text().trim()
+
       // ZipRecruiter job descriptions
       jobDescription = $(".job_description").text()
     } else {
       // Generic extraction for other sites
       source = parsedUrl.hostname.replace("www.", "")
+
+      // Try to extract job title
+      jobTitle = $("h1").first().text().trim()
+
+      // Try to extract company name
+      companyName = $("meta[property='og:site_name']").attr("content") || ""
 
       // Try common job description selectors
       const possibleSelectors = [
@@ -182,6 +273,61 @@ export async function extractJobDescription(url: string): Promise<{
     // Clean up the extracted text
     jobDescription = jobDescription.replace(/\s+/g, " ").replace(/\n+/g, "\n").replace(/\t+/g, " ").trim()
 
+    // Extract skills from job description if not already found
+    if (skills.length === 0 && jobDescription) {
+      // Common skill keywords to look for
+      const skillKeywords = [
+        "JavaScript",
+        "React",
+        "Angular",
+        "Vue",
+        "Node.js",
+        "Python",
+        "Java",
+        "C#",
+        "C++",
+        "Ruby",
+        "PHP",
+        "Swift",
+        "Kotlin",
+        "SQL",
+        "NoSQL",
+        "MongoDB",
+        "MySQL",
+        "PostgreSQL",
+        "AWS",
+        "Azure",
+        "GCP",
+        "Docker",
+        "Kubernetes",
+        "CI/CD",
+        "Git",
+        "Agile",
+        "Scrum",
+        "Project Management",
+        "Communication",
+        "Leadership",
+        "Problem Solving",
+        "Analytical",
+        "Excel",
+        "Word",
+        "PowerPoint",
+        "Photoshop",
+        "Illustrator",
+        "UI/UX",
+        "Design",
+        "Marketing",
+        "Sales",
+        "Customer Service",
+        "SEO",
+        "SEM",
+        "Content Writing",
+      ]
+
+      // Look for skills in the job description
+      skills = skillKeywords.filter((skill) => new RegExp(`\\b${skill}\\b`, "i").test(jobDescription))
+    }
+
     if (!jobDescription) {
       // If we couldn't extract the job description, try to extract the job title and company at least
       const jobTitle = $("title").text() || $("h1").first().text()
@@ -199,6 +345,12 @@ export async function extractJobDescription(url: string): Promise<{
       success: true,
       jobDescription,
       source,
+      jobTitle,
+      companyName,
+      location,
+      jobType,
+      salary,
+      skills,
     }
   } catch (error) {
     console.error("Error extracting job description:", error)

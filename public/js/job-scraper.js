@@ -90,4 +90,210 @@ Benefits:
 
   // Expose function to global scope
   window.extractJobDescriptionFromUrl = extractJobDescriptionFromUrl
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Get DOM elements
+    const jobUrlInput = document.getElementById("jobUrl")
+    const fetchJobButton = document.getElementById("fetchJobButton")
+    const jobDescriptionTextarea = document.getElementById("jobDescription")
+    const jobDescriptionLoading = document.getElementById("jobDescriptionLoading")
+    const jobUrlStatus = document.getElementById("jobUrlStatus")
+    const tabButtons = document.querySelectorAll(".tab-button")
+    const tabContents = document.querySelectorAll(".tab-content")
+    const keywordsList = document.getElementById("keywordsList")
+
+    // Initialize tab functionality
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        // Remove active class from all buttons
+        tabButtons.forEach((btn) => btn.classList.remove("active"))
+        // Add active class to clicked button
+        button.classList.add("active")
+
+        // Hide all tab contents
+        tabContents.forEach((content) => content.classList.add("hidden"))
+        // Show the selected tab content
+        const tabId = button.getAttribute("data-tab")
+        document.getElementById(`${tabId}Tab`).classList.remove("hidden")
+      })
+    })
+
+    // Handle fetch job button click
+    if (fetchJobButton) {
+      fetchJobButton.addEventListener("click", fetchJobDescription)
+    }
+
+    // Handle Enter key press in URL input
+    if (jobUrlInput) {
+      jobUrlInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault()
+          fetchJobDescription()
+        }
+      })
+    }
+
+    // Function to fetch job description from URL
+    async function fetchJobDescription() {
+      // Get URL from input
+      const url = jobUrlInput.value.trim()
+
+      // Validate URL
+      if (!url) {
+        showStatus("Please enter a job posting URL", "error")
+        return
+      }
+
+      // Basic URL validation
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        showStatus("Please enter a valid URL starting with http:// or https://", "error")
+        return
+      }
+
+      // Show loading state
+      setLoading(true)
+      showStatus("Fetching job description...", "info")
+
+      try {
+        // Make API request to backend
+        const response = await fetch("/api/extract-job", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url }),
+        })
+
+        // Parse response
+        const data = await response.json()
+
+        // Handle success
+        if (data.success && data.jobDescription) {
+          // Update job description textarea
+          jobDescriptionTextarea.value = data.jobDescription
+
+          // Switch to paste tab to show the result
+          document.querySelector('.tab-button[data-tab="paste"]').click()
+
+          // Extract keywords if available
+          if (data.skills && data.skills.length > 0) {
+            addKeywordsToList(data.skills)
+          }
+
+          // Show success message
+          showStatus(`Successfully extracted job description from ${data.source || "website"}`, "success")
+
+          // Track event
+          const gtag = window.gtag // Declare gtag variable
+          if (typeof gtag === "function") {
+            gtag("event", "job_description_extracted", {
+              event_category: "job_application",
+              event_label: data.source || "unknown",
+            })
+          }
+        } else {
+          // Handle error
+          showStatus(data.error || "Failed to extract job description. Try copying it manually.", "error")
+        }
+      } catch (error) {
+        // Handle fetch error
+        showStatus("Error connecting to server. Please try again later.", "error")
+        console.error("Error fetching job description:", error)
+      } finally {
+        // Hide loading state
+        setLoading(false)
+      }
+    }
+
+    // Function to show status message
+    function showStatus(message, type = "info") {
+      if (!jobUrlStatus) return
+
+      jobUrlStatus.textContent = message
+      jobUrlStatus.className = "status-message " + type
+    }
+
+    // Function to set loading state
+    function setLoading(isLoading) {
+      if (fetchJobButton) {
+        fetchJobButton.disabled = isLoading
+      }
+      if (jobUrlInput) {
+        jobUrlInput.disabled = isLoading
+      }
+      if (jobDescriptionLoading) {
+        jobDescriptionLoading.classList.toggle("hidden", !isLoading)
+      }
+    }
+
+    // Function to add keywords to the list
+    function addKeywordsToList(skills) {
+      if (!keywordsList) return
+
+      // Clear existing keywords if needed
+      if (keywordsList.children.length === 0) {
+        skills.forEach((skill) => {
+          const keywordTag = document.createElement("div")
+          keywordTag.className = "keyword-tag"
+          keywordTag.innerHTML = `
+            ${skill}
+            <span class="keyword-remove" data-keyword="${skill}">×</span>
+          `
+          keywordsList.appendChild(keywordTag)
+        })
+
+        // Add event listeners to remove buttons
+        document.querySelectorAll(".keyword-remove").forEach((removeBtn) => {
+          removeBtn.addEventListener("click", function () {
+            const keyword = this.getAttribute("data-keyword")
+            this.parentElement.remove()
+          })
+        })
+      }
+    }
+
+    // Create a fallback API endpoint if the backend is not available
+    if (!window.fetch) {
+      window.fetch = function mockFetch(url, options) {
+        return new Promise((resolve) => {
+          console.log("Mock fetch called:", url, options)
+
+          // Simulate API response
+          setTimeout(() => {
+            const body = JSON.parse(options.body)
+            const jobUrl = body.url
+
+            let response = {
+              success: false,
+              error: "Could not extract job description",
+            }
+
+            // Simple mock response based on URL
+            if (jobUrl.includes("linkedin.com")) {
+              response = {
+                success: true,
+                jobDescription:
+                  "This is a mock LinkedIn job description for testing purposes.\n\nRequirements:\n- JavaScript\n- React\n- Node.js\n\nResponsibilities:\n- Develop web applications\n- Work with team members\n- Maintain code quality",
+                source: "LinkedIn",
+                skills: ["JavaScript", "React", "Node.js"],
+              }
+            } else if (jobUrl.includes("indeed.com")) {
+              response = {
+                success: true,
+                jobDescription:
+                  "This is a mock Indeed job description for testing purposes.\n\nQualifications:\n- HTML/CSS\n- Python\n- SQL\n\nJob duties:\n- Create database queries\n- Design user interfaces\n- Analyze data",
+                source: "Indeed",
+                skills: ["HTML/CSS", "Python", "SQL"],
+              }
+            }
+
+            resolve({
+              ok: true,
+              json: () => Promise.resolve(response),
+            })
+          }, 1500)
+        })
+      }
+    }
+  })
 })()
