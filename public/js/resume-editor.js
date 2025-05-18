@@ -17,6 +17,10 @@
       matched: "#e9d8fd", // Light purple
       improved: "#bee3f8", // Light blue
     },
+    // Maximum file size in bytes (10MB)
+    maxFileSize: 10 * 1024 * 1024,
+    // Supported file types
+    supportedFileTypes: [".pdf", ".doc", ".docx", ".txt", ".rtf"],
   }
 
   // Track editor state
@@ -31,6 +35,28 @@
     changesSaved: true,
     analysisTimeout: null,
     jobDescription: "",
+    lastError: null,
+    processingFile: false,
+  }
+
+  // Debug helper
+  const debug = {
+    log: (message, data) => {
+      if (window.DEBUG_MODE) {
+        console.log(`[Resume Editor] ${message}`, data || "")
+      }
+    },
+    error: (message, error) => {
+      console.error(`[Resume Editor Error] ${message}`, error || "")
+    },
+    checkElement: (id) => {
+      const element = document.getElementById(id)
+      if (!element) {
+        debug.error(`Element not found: #${id}`)
+        return false
+      }
+      return true
+    },
   }
 
   /**
@@ -40,32 +66,37 @@
    * @param {string} jobDescription - The job description
    */
   function initResumeEditor(resumeText, initialAnalysis, jobDescription = "") {
-    console.log("Initializing resume editor with text length:", resumeText?.length)
+    debug.log("Initializing resume editor with text length:", resumeText?.length)
 
-    // Store initial state
-    editorState.originalText = resumeText || ""
-    editorState.currentText = resumeText || ""
-    editorState.analysisResults = initialAnalysis || null
-    editorState.jobDescription = jobDescription || ""
+    try {
+      // Store initial state
+      editorState.originalText = resumeText || ""
+      editorState.currentText = resumeText || ""
+      editorState.analysisResults = initialAnalysis || null
+      editorState.jobDescription = jobDescription || ""
 
-    // Set up the editor
-    setupEditor()
+      // Set up the editor
+      setupEditor()
 
-    // Set up view mode toggles
-    setupViewModeToggles()
+      // Set up view mode toggles
+      setupViewModeToggles()
 
-    // Set up suggestion handling
-    setupSuggestionHandlers()
+      // Set up suggestion handling
+      setupSuggestionHandlers()
 
-    // Generate initial suggestions
-    if (initialAnalysis) {
-      generateSuggestions(initialAnalysis)
+      // Generate initial suggestions
+      if (initialAnalysis) {
+        generateSuggestions(initialAnalysis)
+      }
+
+      // Update UI with initial state
+      updateUI()
+
+      debug.log("Resume editor initialized successfully")
+    } catch (error) {
+      debug.error("Error initializing resume editor:", error)
+      showErrorMessage("Failed to initialize the resume editor. Please refresh the page and try again.")
     }
-
-    // Update UI with initial state
-    updateUI()
-
-    console.log("Resume editor initialized successfully")
   }
 
   /**
@@ -74,23 +105,27 @@
   function setupEditor() {
     const editor = document.getElementById("resumeEditor")
     if (!editor) {
-      console.error("Resume editor element not found!")
+      debug.error("Resume editor element not found!")
       return
     }
 
-    // Set initial content
-    editor.value = editorState.currentText
+    try {
+      // Set initial content
+      editor.value = editorState.currentText
 
-    // Add event listeners
-    editor.addEventListener("input", handleEditorInput)
+      // Add event listeners
+      editor.addEventListener("input", handleEditorInput)
 
-    // Add auto-save functionality
-    editor.addEventListener("blur", saveChanges)
+      // Add auto-save functionality
+      editor.addEventListener("blur", saveChanges)
 
-    // Set up keyboard shortcuts
-    editor.addEventListener("keydown", handleKeyboardShortcuts)
+      // Set up keyboard shortcuts
+      editor.addEventListener("keydown", handleKeyboardShortcuts)
 
-    console.log("Editor setup complete")
+      debug.log("Editor setup complete")
+    } catch (error) {
+      debug.error("Error setting up editor:", error)
+    }
   }
 
   /**
@@ -98,20 +133,24 @@
    * @param {Event} event - The input event
    */
   function handleEditorInput(event) {
-    // Update current text
-    editorState.currentText = event.target.value
+    try {
+      // Update current text
+      editorState.currentText = event.target.value
 
-    // Mark changes as unsaved
-    editorState.changesSaved = false
+      // Mark changes as unsaved
+      editorState.changesSaved = false
 
-    // Show saving indicator
-    updateSavingStatus("Editing...")
+      // Show saving indicator
+      updateSavingStatus("Editing...")
 
-    // Debounce analysis to avoid too frequent updates
-    clearTimeout(editorState.analysisTimeout)
-    editorState.analysisTimeout = setTimeout(() => {
-      analyzeResume()
-    }, CONFIG.analysisDelay)
+      // Debounce analysis to avoid too frequent updates
+      clearTimeout(editorState.analysisTimeout)
+      editorState.analysisTimeout = setTimeout(() => {
+        analyzeResume()
+      }, CONFIG.analysisDelay)
+    } catch (error) {
+      debug.error("Error handling editor input:", error)
+    }
   }
 
   /**
@@ -202,9 +241,15 @@
 
       // Update keyword lists
       updateKeywordLists(results)
+
+      // Clear any previous errors
+      editorState.lastError = null
+      hideErrorMessage()
     } catch (error) {
-      console.error("Error analyzing resume:", error)
+      debug.error("Error analyzing resume:", error)
+      editorState.lastError = error
       updateAnalysisStatus("Analysis failed: " + (error.message || "Unknown error"))
+      showErrorMessage("Analysis failed: " + (error.message || "Unknown error"))
     } finally {
       // Reset analyzing state
       editorState.isAnalyzing = false
@@ -247,7 +292,7 @@
         const keywordElement = document.createElement("div")
         keywordElement.className = "keyword-match"
         keywordElement.innerHTML = `
-          <span class="keyword-text">${keyword.text}</span>
+          <span class="keyword-text">${sanitizeHTML(keyword.text)}</span>
           <span class="keyword-frequency">${keyword.frequency}×</span>
         `
         matchingContainer.appendChild(keywordElement)
@@ -262,8 +307,8 @@
         const keywordElement = document.createElement("div")
         keywordElement.className = "keyword-miss"
         keywordElement.innerHTML = `
-          <span class="keyword-text">${keyword}</span>
-          <button class="keyword-add" data-keyword="${keyword}">Add</button>
+          <span class="keyword-text">${sanitizeHTML(keyword)}</span>
+          <button class="keyword-add" data-keyword="${sanitizeHTML(keyword)}">Add</button>
         `
 
         // Add event listener to add button
@@ -498,7 +543,7 @@
   function addKeywordToResume(keyword) {
     if (!keyword) return
 
-    console.log("Adding keyword to resume:", keyword)
+    debug.log("Adding keyword to resume:", keyword)
 
     // Find appropriate section to add keyword
     const section = findBestSectionForKeyword(keyword)
@@ -506,7 +551,7 @@
     // Get editor
     const editor = document.getElementById("resumeEditor")
     if (!editor) {
-      console.error("Editor element not found")
+      debug.error("Editor element not found")
       return
     }
 
@@ -636,7 +681,10 @@
         <p>Choose the most relevant keyword for your resume:</p>
         <div class="keyword-options">
           ${keywords
-            .map((keyword) => `<button class="keyword-option" data-keyword="${keyword}">${keyword}</button>`)
+            .map(
+              (keyword) =>
+                `<button class="keyword-option" data-keyword="${sanitizeHTML(keyword)}">${sanitizeHTML(keyword)}</button>`,
+            )
             .join("")}
         </div>
         <div class="dialog-actions">
@@ -731,7 +779,7 @@
             setTimeout(() => verb.classList.remove("copied"), 1000)
           })
           .catch((err) => {
-            console.error("Failed to copy text: ", err)
+            debug.error("Failed to copy text: ", err)
             alert("Failed to copy to clipboard. Please copy manually.")
           })
       })
@@ -967,7 +1015,7 @@
   function setupViewModeToggles() {
     const toggles = document.querySelectorAll(".view-mode-toggle")
     if (!toggles.length) {
-      console.warn("View mode toggles not found")
+      debug.warn("View mode toggles not found")
       return
     }
 
@@ -1003,7 +1051,7 @@
     const comparison = document.getElementById("resumeComparison")
 
     if (!editorContainer || !editor || !comparison) {
-      console.error("Editor container, editor, or comparison element not found")
+      debug.error("Editor container, editor, or comparison element not found")
       return
     }
 
@@ -1046,18 +1094,58 @@
   function formatTextForDisplay(text) {
     if (!text) return ""
 
-    // Escape HTML
-    let html = text
+    try {
+      // Normalize text encoding
+      text = normalizeText(text)
+
+      // Escape HTML
+      let html = sanitizeHTML(text)
+
+      // Convert newlines to <br>
+      html = html.replace(/\n/g, "<br>")
+
+      return html
+    } catch (error) {
+      debug.error("Error formatting text for display:", error)
+      return `<p class="error-message">Error displaying text: ${error.message}</p>`
+    }
+  }
+
+  /**
+   * Normalize text encoding
+   * @param {string} text - The text to normalize
+   * @returns {string} - Normalized text
+   */
+  function normalizeText(text) {
+    if (!text) return ""
+
+    try {
+      // Handle common encoding issues
+      return text
+        .replace(/[\uFFFD\uFFFE\uFFFF]/g, "") // Remove replacement characters
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "") // Remove control characters
+        .replace(/\uFEFF/g, "") // Remove BOM
+        .normalize("NFKD") // Normalize to decomposed form
+    } catch (error) {
+      debug.error("Error normalizing text:", error)
+      return text // Return original text if normalization fails
+    }
+  }
+
+  /**
+   * Sanitize HTML to prevent XSS
+   * @param {string} text - The text to sanitize
+   * @returns {string} - Sanitized text
+   */
+  function sanitizeHTML(text) {
+    if (!text) return ""
+
+    return String(text)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;")
-
-    // Convert newlines to <br>
-    html = html.replace(/\n/g, "<br>")
-
-    return html
   }
 
   /**
@@ -1071,43 +1159,52 @@
       return "<p>Cannot generate comparison - missing original or current text</p>"
     }
 
-    // Simple diff implementation
-    const originalLines = original.split("\n")
-    const currentLines = current.split("\n")
+    try {
+      // Normalize text encoding
+      original = normalizeText(original)
+      current = normalizeText(current)
 
-    let html = '<div class="diff-view">'
-    html += '<div class="diff-original">'
-    html += "<h4>Original Resume</h4>"
-    html += '<div class="diff-content">'
+      // Simple diff implementation
+      const originalLines = original.split("\n")
+      const currentLines = current.split("\n")
 
-    originalLines.forEach((line) => {
-      html += `<div class="diff-line">${formatTextForDisplay(line)}</div>`
-    })
+      let html = '<div class="diff-view">'
+      html += '<div class="diff-original">'
+      html += "<h4>Original Resume</h4>"
+      html += '<div class="diff-content">'
 
-    html += "</div></div>"
-    html += '<div class="diff-current">'
-    html += "<h4>Optimized Resume</h4>"
-    html += '<div class="diff-content">'
+      originalLines.forEach((line) => {
+        html += `<div class="diff-line">${formatTextForDisplay(line)}</div>`
+      })
 
-    // Highlight changes in current text
-    const addedLines = findAddedLines(originalLines, currentLines)
-    const removedLines = findRemovedLines(originalLines, currentLines)
+      html += "</div></div>"
+      html += '<div class="diff-current">'
+      html += "<h4>Optimized Resume</h4>"
+      html += '<div class="diff-content">'
 
-    currentLines.forEach((line) => {
-      let lineClass = "diff-line"
+      // Highlight changes in current text
+      const addedLines = findAddedLines(originalLines, currentLines)
+      const removedLines = findRemovedLines(originalLines, currentLines)
 
-      if (addedLines.includes(line)) {
-        lineClass += " diff-added"
-      } else if (isModifiedLine(line, originalLines, removedLines)) {
-        lineClass += " diff-modified"
-      }
+      currentLines.forEach((line) => {
+        let lineClass = "diff-line"
 
-      html += `<div class="${lineClass}">${formatTextForDisplay(line)}</div>`
-    })
+        if (addedLines.includes(line)) {
+          lineClass += " diff-added"
+        } else if (isModifiedLine(line, originalLines, removedLines)) {
+          lineClass += " diff-modified"
+        }
 
-    html += "</div></div></div>"
+        html += `<div class="${lineClass}">${formatTextForDisplay(line)}</div>`
+      })
 
-    return html
+      html += "</div></div></div>"
+
+      return html
+    } catch (error) {
+      debug.error("Error generating diff view:", error)
+      return `<p class="error-message">Error generating comparison: ${error.message}</p>`
+    }
   }
 
   /**
@@ -1220,7 +1317,7 @@
   function updateSuggestions() {
     const suggestionsContainer = document.getElementById("improvementSuggestions")
     if (!suggestionsContainer) {
-      console.warn("Suggestions container not found")
+      debug.warn("Suggestions container not found")
       return
     }
 
@@ -1232,7 +1329,7 @@
       const suggestionElement = document.createElement("div")
       suggestionElement.className = `suggestion-item suggestion-${suggestion.type}`
       suggestionElement.innerHTML = `
-        <div class="suggestion-text">${suggestion.text}</div>
+        <div class="suggestion-text">${sanitizeHTML(suggestion.text)}</div>
         <button class="suggestion-apply">Apply</button>
       `
 
@@ -1265,7 +1362,7 @@
     const missingContainer = document.getElementById("missingKeywords")
 
     if (!matchingContainer || !missingContainer) {
-      console.warn("Keyword containers not found")
+      debug.warn("Keyword containers not found")
       return
     }
 
@@ -1276,7 +1373,7 @@
         const keywordElement = document.createElement("div")
         keywordElement.className = "keyword-match"
         keywordElement.innerHTML = `
-          <span class="keyword-text">${keyword.text}</span>
+          <span class="keyword-text">${sanitizeHTML(keyword.text)}</span>
           <span class="keyword-frequency">${keyword.frequency}×</span>
         `
         matchingContainer.appendChild(keywordElement)
@@ -1292,8 +1389,8 @@
         const keywordElement = document.createElement("div")
         keywordElement.className = "keyword-miss"
         keywordElement.innerHTML = `
-          <span class="keyword-text">${keyword}</span>
-          <button class="keyword-add" data-keyword="${keyword}">Add</button>
+          <span class="keyword-text">${sanitizeHTML(keyword)}</span>
+          <button class="keyword-add" data-keyword="${sanitizeHTML(keyword)}">Add</button>
         `
 
         // Add event listener to add button
@@ -1308,14 +1405,147 @@
     }
   }
 
+  /**
+   * Show error message
+   * @param {string} message - The error message
+   */
+  function showErrorMessage(message) {
+    // Create error container if it doesn't exist
+    let errorContainer = document.getElementById("errorContainer")
+    if (!errorContainer) {
+      errorContainer = document.createElement("div")
+      errorContainer.id = "errorContainer"
+      errorContainer.className = "error-message"
+
+      // Find a good place to insert the error container
+      const resultsArea = document.getElementById("resultsArea")
+      if (resultsArea) {
+        resultsArea.parentNode.insertBefore(errorContainer, resultsArea)
+      } else {
+        const analyzeButton = document.getElementById("analyzeButton")
+        if (analyzeButton) {
+          analyzeButton.parentNode.insertBefore(errorContainer, analyzeButton.nextSibling)
+        }
+      }
+    }
+
+    // Update error message
+    errorContainer.innerHTML = `
+      <div class="error-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <div class="error-content">
+        <div class="error-title">Error</div>
+        <div class="error-text">${sanitizeHTML(message)}</div>
+      </div>
+    `
+
+    // Show error container
+    errorContainer.classList.remove("hidden")
+  }
+
+  /**
+   * Hide error message
+   */
+  function hideErrorMessage() {
+    const errorContainer = document.getElementById("errorContainer")
+    if (errorContainer) {
+      errorContainer.classList.add("hidden")
+    }
+  }
+
+  /**
+   * Process resume file
+   * @param {File} file - The resume file
+   * @returns {Promise<string>} - The extracted text
+   */
+  async function processResumeFile(file) {
+    if (!file) {
+      throw new Error("No file provided")
+    }
+
+    // Check file size
+    if (file.size > CONFIG.maxFileSize) {
+      throw new Error(`File size exceeds the maximum limit of ${CONFIG.maxFileSize / (1024 * 1024)}MB`)
+    }
+
+    // Set processing state
+    editorState.processingFile = true
+    updateAnalysisStatus("Processing file...")
+
+    try {
+      // Detect file type
+      const fileType = window.detectFileType ? window.detectFileType(file) : "unknown"
+      debug.log("Detected file type:", fileType)
+
+      let text = ""
+
+      // Extract text based on file type
+      switch (fileType) {
+        case "pdf":
+          if (typeof window.extractTextFromPDF === "function") {
+            text = await window.extractTextFromPDF(file)
+          } else {
+            throw new Error("PDF extraction function not available")
+          }
+          break
+        case "docx":
+          if (typeof window.extractTextFromDOCX === "function") {
+            text = await window.extractTextFromDOCX(file)
+          } else {
+            throw new Error("DOCX extraction function not available")
+          }
+          break
+        case "txt":
+          text = await file.text()
+          break
+        default:
+          // Try to extract text using any available method
+          try {
+            if (typeof window.extractTextFromAnyFile === "function") {
+              text = await window.extractTextFromAnyFile(file)
+            } else {
+              text = await file.text()
+            }
+          } catch (error) {
+            throw new Error(`Unsupported file type: ${file.type || "unknown"}`)
+          }
+      }
+
+      // Validate extracted text
+      if (!text || text.trim().length < 50) {
+        throw new Error("Could not extract sufficient text from the file")
+      }
+
+      // Normalize text encoding
+      text = normalizeText(text)
+
+      return text
+    } catch (error) {
+      debug.error("Error processing resume file:", error)
+      throw error
+    } finally {
+      // Reset processing state
+      editorState.processingFile = false
+      updateAnalysisStatus("")
+    }
+  }
+
   // Expose functions to global scope
   window.ResumeEditor = {
     init: initResumeEditor,
     analyze: analyzeResume,
+    processFile: processResumeFile,
     getState: () => ({
       ...editorState,
       addKeywordToResume, // Include the function for external access
     }),
+    showError: showErrorMessage,
+    hideError: hideErrorMessage,
   }
 })()
 /**
@@ -1906,7 +2136,6 @@ function showComparison() {
 function debounce(func, wait) {
   let timeout
   return function () {
-    
     const args = arguments
     clearTimeout(timeout)
     timeout = setTimeout(() => {
