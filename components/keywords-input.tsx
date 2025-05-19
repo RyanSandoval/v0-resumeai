@@ -77,3 +77,6 @@ export function KeywordsInput({ keywords, onChange }: KeywordsInputProps) {
     </div>
   )
 }
+
+// Add default export to fix deployment error
+export default KeywordsInput

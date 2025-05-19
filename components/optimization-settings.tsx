@@ -153,3 +153,7 @@ export function OptimizationSettings({ options, onChange }: OptimizationSettings
     </Accordion>
   )
 }
+
+// Create OptimizationSettingsComponent as a default export
+const OptimizationSettingsComponent = OptimizationSettings
+export default OptimizationSettingsComponent

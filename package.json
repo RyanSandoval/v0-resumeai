@@ -81,6 +81,7 @@
     "util": "latest",
     "uuid": "latest",
     "vaul": "^0.9.6",
+    "xai": "latest",
     "zod": "^3.24.1"
   },
   "devDependencies": {
