@@ -10,7 +10,7 @@ import { KeywordsInput } from "@/components/keywords-input"
 import { OptimizationSettings } from "@/components/optimization-settings"
 import { ResumePreview } from "@/components/resume-preview"
 import { Progress } from "@/components/ui/progress"
-import { analyzeResumeWithAI } from "@/app/actions/optimize-resume"
+import { analyzeResumeWithAI } from "@/lib/ai-analysis"
 import { getBaselineResume } from "@/app/actions/baseline-resume-actions"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, AlertCircle, FileText } from "lucide-react"
@@ -231,6 +231,17 @@ export function ResumeOptimizer() {
       toast({
         title: "Invalid resume content",
         description: "The resume doesn't appear to contain enough text content. Please check the file and try again.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    // Check for garbled text (common with DOCX parsing issues)
+    const unusualCharCount = (text.match(/[^\x20-\x7E\n\r\t]/g) || []).length
+    if (unusualCharCount > text.length * 0.15) {
+      toast({
+        title: "Parsing issue detected",
+        description: "The resume contains unusual characters. Try uploading in a different format (PDF or TXT).",
         variant: "destructive",
       })
       return false

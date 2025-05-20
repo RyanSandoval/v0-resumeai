@@ -2,19 +2,13 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, FileText, Upload, X } from "lucide-react"
-import { extractTextFromFile, getSampleResume, validateResumeFile } from "@/lib/file-utils"
-import { useToast } from "@/hooks/use-toast"
+import { Card } from "@/components/ui/card"
+import { extractTextFromFile, validateResumeFile } from "@/lib/file-utils"
+import { Loader2, Upload, FileText, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import type { ResumeFile } from "@/components/resume-optimizer"
-import { generatePDFDiagnostics } from "@/lib/diagnostics/pdf-diagnostics"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ResumeUrlInput } from "@/components/resume-url-input"
 
 interface ResumeUploadProps {
   onFileSelected: (file: ResumeFile | null) => void
@@ -24,293 +18,207 @@ interface ResumeUploadProps {
 export function ResumeUpload({ onFileSelected, selectedFile }: ResumeUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [uploadKey, setUploadKey] = useState<number>(0) // Used to force re-render of file input
-  const [inputMethod, setInputMethod] = useState<"upload" | "url">("upload")
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
 
-  // Reset the component when selectedFile becomes null
-  useEffect(() => {
-    if (!selectedFile) {
+  // Handle file selection
+  const handleFileChange = useCallback(
+    async (file: File | null) => {
+      // Reset state
       setError(null)
-      setIsProcessing(false)
-      // Reset the file input by updating the key
-      setUploadKey((prev) => prev + 1)
-    }
-  }, [selectedFile])
+      setProgress(0)
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = () => {
-    setIsDragging(false)
-  }
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const files = e.dataTransfer.files
-    if (files.length > 0) {
-      processFile(files[0])
-    }
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      processFile(files[0])
-    }
-  }
-
-  const processFile = async (file: File) => {
-    setError(null)
-    setIsProcessing(true)
-
-    try {
-      // Validate file before processing
-      const validation = validateResumeFile(file)
-      if (!validation.valid) {
-        setError(validation.error || "Invalid file")
-        setIsProcessing(false)
+      // If no file is selected, reset
+      if (!file) {
+        onFileSelected(null)
         return
       }
 
-      // Get the file type
-      const fileType = file.name.split(".").pop()?.toLowerCase() || ""
+      // Validate file
+      const validation = validateResumeFile(file)
+      if (!validation.valid) {
+        setError(validation.error || "Invalid file")
+        return
+      }
 
-      // For PDF files, we need special handling
-      if (fileType === "pdf") {
-        try {
-          // First, notify that we're processing a PDF
-          onFileSelected({
-            file,
-            text: "",
-            type: "pdf",
-            processing: true,
-          })
+      // Start processing
+      setIsProcessing(true)
 
-          // Extract text from the PDF
-          const text = await extractTextFromFile(file)
+      // Create a progress simulation
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          const increment = prev < 50 ? 5 : prev < 80 ? 2 : 0.5
+          return Math.min(prev + increment, 95)
+        })
+      }, 100)
 
-          // Update with the actual text
-          onFileSelected({
-            file,
-            text,
-            type: "pdf",
-            processing: false,
-          })
-
-          toast({
-            title: "PDF processed",
-            description: `Successfully processed ${file.name}`,
-          })
-        } catch (pdfError) {
-          console.error("Error processing PDF:", pdfError)
-          setError(pdfError instanceof Error ? pdfError.message : "Failed to process PDF file")
-
-          // Run diagnostics on the PDF
-          try {
-            const diagnostics = await generatePDFDiagnostics(file)
-            console.log("PDF Diagnostics Report:\n", diagnostics)
-          } catch (diagError) {
-            console.error("Failed to generate PDF diagnostics:", diagError)
-          }
-
-          // Reset the file selection
-          onFileSelected(null)
-
-          toast({
-            title: "PDF processing failed",
-            description: pdfError instanceof Error ? pdfError.message : "Failed to process PDF file",
-            variant: "destructive",
-          })
-        } finally {
-          setIsProcessing(false)
+      try {
+        // Extract text from file
+        const resumeFile: ResumeFile = {
+          file,
+          text: "",
+          type: file.type,
+          processing: true,
         }
-      } else {
-        // For non-PDF files, process normally
+
+        // Notify parent that processing has started
+        onFileSelected(resumeFile)
+
+        // Process the file
         const text = await extractTextFromFile(file)
 
-        // Set the selected file
-        onFileSelected({
+        // Update progress to 100%
+        clearInterval(progressInterval)
+        setProgress(100)
+
+        // Create resume file object
+        const processedFile: ResumeFile = {
           file,
           text,
-          type: fileType,
-        })
+          type: file.type,
+        }
 
-        toast({
-          title: "Resume uploaded",
-          description: `Successfully processed ${file.name}`,
-        })
-
+        // Notify parent
+        onFileSelected(processedFile)
+      } catch (err) {
+        clearInterval(progressInterval)
+        setProgress(0)
+        setError(err instanceof Error ? err.message : "Failed to process file")
+        onFileSelected(null)
+      } finally {
         setIsProcessing(false)
       }
-    } catch (error) {
-      console.error("Error processing file:", error)
-      setError(error instanceof Error ? error.message : "Failed to process file")
+    },
+    [onFileSelected],
+  )
 
-      // Reset the file selection
-      onFileSelected(null)
-
-      toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to process file",
-        variant: "destructive",
-      })
-
-      setIsProcessing(false)
-    }
+  // Handle file input change
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null
+    handleFileChange(file)
   }
 
+  // Handle drag events
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files?.[0] || null
+    handleFileChange(file)
+  }
+
+  // Handle button click
+  const handleButtonClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  // Handle file removal
   const handleRemoveFile = () => {
-    // Reset the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
-
-    // Clear any errors
-    setError(null)
-
-    // Reset the upload key to force re-render of file input
-    setUploadKey((prev) => prev + 1)
-
-    // Notify parent component
     onFileSelected(null)
-  }
-
-  const handleUseSample = () => {
-    const sampleText = getSampleResume()
-    onFileSelected({
-      file: new File([sampleText], "sample-resume.txt", { type: "text/plain" }),
-      text: sampleText,
-      type: "txt",
-    })
-
-    toast({
-      title: "Sample resume loaded",
-      description: "You can now proceed with the sample resume",
-    })
-  }
-
-  const handleResumeExtracted = (text: string) => {
-    // Create a file object from the extracted text
-    const file = new File([text], "extracted-resume.txt", { type: "text/plain" })
-
-    // Set the selected file
-    onFileSelected({
-      file,
-      text,
-      type: "txt",
-    })
-
-    toast({
-      title: "Resume extracted",
-      description: "Successfully extracted resume from URL",
-    })
+    setProgress(0)
+    setError(null)
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-semibold">Upload Your Resume</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Upload your resume to get started with optimization
-          </p>
-        </div>
-        {!selectedFile && (
-          <Button variant="outline" size="sm" onClick={handleUseSample}>
-            Use Sample Resume
-          </Button>
-        )}
-      </div>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+    <div className="w-full">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleInputChange}
+        accept=".pdf,.docx,.doc,.txt"
+        className="hidden"
+        disabled={isProcessing}
+      />
 
       {!selectedFile ? (
-        <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as any)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload">Upload File</TabsTrigger>
-            <TabsTrigger value="url">From URL</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="upload">
-            <Card
-              className={`border-2 border-dashed ${
-                isDragging ? "border-primary bg-primary/5" : "border-slate-200 dark:border-slate-700"
-              } transition-colors duration-200`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="mb-4 rounded-full bg-primary/10 p-3">
-                  <Upload className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="mb-1 text-lg font-semibold">Drag and drop your resume</h3>
-                <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-                  Supports PDF, DOCX, and TXT files (max 10MB)
-                </p>
-                <div className="flex flex-col items-center gap-2">
-                  <Label
-                    htmlFor={`resume-upload-${uploadKey}`}
-                    className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                  >
-                    Browse Files
-                  </Label>
-                  <Input
-                    id={`resume-upload-${uploadKey}`}
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    className="hidden"
-                    onChange={handleFileChange}
-                    disabled={isProcessing}
-                    key={uploadKey}
-                  />
-                  {isProcessing && <p className="text-sm text-slate-500">Processing file...</p>}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="url">
-            <Card>
-              <CardContent className="p-6">
-                <ResumeUrlInput onResumeExtracted={handleResumeExtracted} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <Card
+          className={`border-2 border-dashed p-6 text-center ${
+            isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+          } hover:border-primary/50 transition-colors cursor-pointer`}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={handleButtonClick}
+        >
+          <div className="flex flex-col items-center justify-center space-y-4 py-4">
+            {isProcessing ? (
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+            ) : (
+              <Upload className="h-10 w-10 text-muted-foreground" />
+            )}
+            <div className="space-y-1">
+              <p className="text-sm font-medium">{isProcessing ? "Processing resume..." : "Upload your resume"}</p>
+              <p className="text-xs text-muted-foreground">Drag and drop or click to upload (PDF, DOCX, or TXT)</p>
+            </div>
+          </div>
+        </Card>
       ) : (
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md bg-primary/10 p-2">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-primary/10 rounded-full">
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="font-medium">{selectedFile.file.name}</p>
-                <p className="text-xs text-slate-500">
-                  {(selectedFile.file.size / 1024).toFixed(1)} KB • {selectedFile.type.toUpperCase()}
-                </p>
+                <p className="text-sm font-medium">{selectedFile.file.name}</p>
+                <p className="text-xs text-muted-foreground">{(selectedFile.file.size / 1024).toFixed(1)} KB</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
-              <X className="h-4 w-4" />
-              <span className="sr-only">Remove file</span>
+            <Button variant="ghost" size="sm" onClick={handleRemoveFile} disabled={isProcessing}>
+              Remove
             </Button>
-          </CardContent>
+          </div>
         </Card>
+      )}
+
+      {isProcessing && (
+        <div className="mt-4 space-y-2">
+          <Progress value={progress} className="h-2" />
+          <p className="text-xs text-center text-muted-foreground">Processing resume... {Math.round(progress)}%</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 p-3 bg-destructive/10 text-destructive rounded-md flex items-start space-x-2">
+          <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium">Error</p>
+            <p className="text-xs">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {selectedFile && !isProcessing && !error && (
+        <div className="mt-4 p-3 bg-success/10 text-success rounded-md flex items-start space-x-2">
+          <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium">Resume uploaded successfully</p>
+            <p className="text-xs">Your resume is ready for optimization</p>
+          </div>
+        </div>
       )}
     </div>
   )

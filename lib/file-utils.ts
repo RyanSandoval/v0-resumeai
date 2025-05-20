@@ -5,6 +5,7 @@
  */
 
 import { detectFileType } from "./file-type-detector"
+import { logParsingEvent } from "./parsers/parser-events"
 
 // Sample resume text for fallback
 const SAMPLE_RESUME = `JOHN DOE
@@ -75,11 +76,14 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
   try {
     console.log(`Processing file: ${file.name}, type: ${file.type}, size: ${file.size} bytes`)
+    logParsingEvent("start", "file", file.name, file.size)
 
     // Check file size
     if (file.size > 10 * 1024 * 1024) {
       // 10MB limit
-      throw new Error("File is too large. Please upload a file smaller than 10MB.")
+      const error = new Error("File is too large. Please upload a file smaller than 10MB.")
+      logParsingEvent("error", "file-size", file.name, file.size, 0, error)
+      throw error
     }
 
     // Use our improved file type detection
@@ -92,16 +96,18 @@ export async function extractTextFromFile(file: File): Promise<string> {
       if (typeof window !== "undefined") {
         try {
           // Dynamically import our enhanced PDF parser
-          const { extractTextFromPDF } = await import("./parsers/pdf-parser")
+          const { extractTextFromPDF } = await import("./parsers/robust-pdf-parser")
           const text = await extractTextFromPDF(file)
 
           // Don't validate PDF content length here - just return what we got
           if (text) {
             console.log(`PDF extraction successful, got ${text.length} characters`)
+            logParsingEvent("success", "pdf", file.name, file.size, text.length)
             return text
           }
         } catch (error) {
           console.error("PDF parser failed:", error)
+          logParsingEvent("error", "pdf", file.name, file.size, 0, error)
           // Fall through to use the sample resume if parser fails
         }
       } else {
@@ -110,18 +116,32 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
       // If we get here, either we're not in a browser or the parser failed
       console.log("PDF parsing failed or not supported in this environment, using sample resume")
+      logParsingEvent("fallback", "pdf-sample", file.name, file.size)
       return getSampleResume()
     } else if (fileType === "docx") {
-      // Dynamically import the DOCX parser
-      const { extractTextFromDOCX } = await import("./parsers/docx-parser")
-      return await extractTextFromDOCX(file)
+      // Dynamically import the enhanced DOCX parser
+      const { extractTextFromDOCX } = await import("./parsers/enhanced-docx-parser")
+      const text = await extractTextFromDOCX(file)
+
+      // Validate the extracted text
+      if (text && text.length > 100) {
+        return text
+      }
+
+      // If text is too short, use sample resume
+      console.log("DOCX extraction returned insufficient text, using sample resume")
+      logParsingEvent("fallback", "docx-sample", file.name, file.size)
+      return getSampleResume()
     } else if (fileType === "txt") {
       return await extractTextFromTXT(file)
     } else {
-      throw new Error(`Unsupported file format: ${fileType}. Please upload a PDF, DOCX, or TXT file.`)
+      const error = new Error(`Unsupported file format: ${fileType}. Please upload a PDF, DOCX, or TXT file.`)
+      logParsingEvent("error", "unsupported-format", file.name, file.size, 0, error)
+      throw error
     }
   } catch (error) {
     console.error("Error extracting text from file:", error)
+    logParsingEvent("error", "extraction", file.name, file.size, 0, error)
 
     // Return a more informative error message
     if (error instanceof Error) {
@@ -138,17 +158,22 @@ export async function extractTextFromFile(file: File): Promise<string> {
 async function extractTextFromTXT(file: File): Promise<string> {
   try {
     console.log("Extracting text from TXT file")
+    logParsingEvent("start", "txt", file.name, file.size)
+
     const text = await file.text()
 
     if (text && text.length > 0) {
       console.log("Successfully extracted text from TXT file")
+      logParsingEvent("success", "txt", file.name, file.size, text.length)
       return text
     }
 
     console.log("TXT file appears to be empty, using sample resume")
+    logParsingEvent("fallback", "txt-sample", file.name, file.size)
     return SAMPLE_RESUME
   } catch (error) {
     console.error("Error extracting text from TXT:", error)
+    logParsingEvent("error", "txt", file.name, file.size, 0, error)
     return SAMPLE_RESUME
   }
 }
