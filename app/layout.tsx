@@ -1,6 +1,11 @@
 import type React from "react"
 import "./globals.css"
 import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import { SiteLayout } from "@/components/layout/site-layout"
+import { SessionProvider } from "@/components/auth/session-provider"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Resume Optimizer",
@@ -15,7 +20,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>
+        <SessionProvider>
+          <SiteLayout>{children}</SiteLayout>
+        </SessionProvider>
+      </body>
     </html>
   )
 }
