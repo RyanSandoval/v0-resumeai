@@ -1,6 +1,7 @@
 "use server"
 
 import { load } from "cheerio"
+import { fallbackJobScraper } from "@/lib/job-scraper-fallback"
 
 export type JobPostingData = {
   title: string
@@ -35,29 +36,51 @@ export async function extractJobPosting(url: string): Promise<{
       }
     }
 
-    // Fetch the content with appropriate headers
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml",
-        "Accept-Language": "en-US,en;q=0.9",
-        Referer: "https://www.google.com/",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-      },
-      cache: "no-store",
-    })
+    // Fetch the content with appropriate headers and retry logic
+    const fetchWithRetry = async (url: string, retries = 2): Promise<Response> => {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            Accept: "text/html,application/xhtml+xml,application/xml",
+            "Accept-Language": "en-US,en;q=0.9",
+            Referer: "https://www.google.com/",
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+          cache: "no-store",
+          next: { revalidate: 0 },
+        })
 
-    if (!response.ok) {
-      return {
-        success: false,
-        data: null,
-        error: `Failed to fetch URL: ${response.status} ${response.statusText}`,
+        if (!response.ok) {
+          throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`)
+        }
+
+        return response
+      } catch (error) {
+        if (retries > 0) {
+          console.log(`Retry attempt for URL: ${url}, ${retries} attempts left`)
+          await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait 1 second before retrying
+          return fetchWithRetry(url, retries - 1)
+        }
+        throw error
       }
     }
 
-    const html = await response.text()
+    // Replace the existing fetch call with our new fetchWithRetry function
+    let html: string
+    try {
+      const response = await fetchWithRetry(url)
+      html = await response.text()
+    } catch (error) {
+      console.error(`Error fetching job URL ${url}:`, error)
+      return {
+        success: false,
+        data: null,
+        error: `Failed to fetch job posting: ${error instanceof Error ? error.message : "Unknown error"}. The site may block automated access or require authentication.`,
+      }
+    }
 
     // Extract job data based on the website
     const hostname = parsedUrl.hostname.toLowerCase()
@@ -242,10 +265,29 @@ export async function extractJobPosting(url: string): Promise<{
     }
   } catch (error) {
     console.error("Error extracting job posting:", error)
-    return {
-      success: false,
-      data: null,
-      error: error instanceof Error ? error.message : "An unknown error occurred",
+
+    // Try the fallback scraper before giving up
+    try {
+      console.log("Attempting fallback job scraping for URL:", url)
+      const fallbackResult = await fallbackJobScraper(url)
+
+      if (fallbackResult.success && fallbackResult.data) {
+        console.log("Fallback scraping successful")
+        return fallbackResult
+      }
+
+      return {
+        success: false,
+        data: null,
+        error: `Failed to extract job data: ${error instanceof Error ? error.message : "Unknown error"}. The site may block automated access or require authentication.`,
+      }
+    } catch (fallbackError) {
+      console.error("Fallback scraping also failed:", fallbackError)
+      return {
+        success: false,
+        data: null,
+        error: `Failed to extract job data after multiple attempts. The site may block automated access or require authentication.`,
+      }
     }
   }
 }

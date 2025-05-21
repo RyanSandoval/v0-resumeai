@@ -43,7 +43,15 @@ export function JobUrlScraper({ onJobDataExtracted }: JobUrlScraperProps) {
     setPartialExtraction(false)
 
     try {
-      const result = await extractJobPosting(url)
+      // Add a timeout to prevent hanging requests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000)
+      })
+
+      // Race the actual request against the timeout
+      const result = (await Promise.race([extractJobPosting(url), timeoutPromise])) as Awaited<
+        ReturnType<typeof extractJobPosting>
+      >
 
       if (result.success && result.data) {
         setSuccess(true)
@@ -62,7 +70,19 @@ export function JobUrlScraper({ onJobDataExtracted }: JobUrlScraperProps) {
         setError(result.error || "Failed to extract job data from the provided URL")
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "An unexpected error occurred")
+      console.error("Error in job URL extraction:", error)
+
+      if (error instanceof Error && error.message.includes("timed out")) {
+        setError(
+          "Request timed out. The job site may be slow or blocking our request. Try copying the job description manually.",
+        )
+      } else {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred while connecting to the server. Please try again later.",
+        )
+      }
     } finally {
       setIsLoading(false)
     }
@@ -106,7 +126,19 @@ export function JobUrlScraper({ onJobDataExtracted }: JobUrlScraperProps) {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {error.includes("timed out") || error.includes("connecting to server") ? (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium">Suggestions:</p>
+                    <ul className="text-sm list-disc pl-5 mt-1">
+                      <li>Check your internet connection</li>
+                      <li>Try a different job posting URL</li>
+                      <li>Copy and paste the job description manually</li>
+                    </ul>
+                  </div>
+                ) : null}
+              </AlertDescription>
             </Alert>
           )}
 

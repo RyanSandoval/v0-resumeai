@@ -17,6 +17,7 @@ import { createJobApplication, updateJobApplication } from "@/app/actions/job-tr
 import { JobDescriptionInput } from "@/components/job-description-input"
 import { JobUrlScraper } from "@/components/job-url-scraper"
 import type { JobPostingData } from "@/app/actions/extract-job-posting"
+import { ManualJobInput } from "@/components/manual-job-input"
 
 type JobApplication = {
   id: string
@@ -184,13 +185,18 @@ export function JobApplicationModal({ isOpen, onClose, job }: JobApplicationModa
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="manual">Form Entry</TabsTrigger>
             <TabsTrigger value="url">Import from URL</TabsTrigger>
+            <TabsTrigger value="manual-entry">Manual Entry</TabsTrigger>
           </TabsList>
 
           <TabsContent value="url" className="mt-4">
             <JobUrlScraper onJobDataExtracted={handleJobDataExtracted} />
+          </TabsContent>
+
+          <TabsContent value="manual-entry" className="mt-4">
+            <ManualJobInput onJobDataEntered={handleJobDataExtracted} />
           </TabsContent>
 
           <TabsContent value="manual" className="mt-4">
