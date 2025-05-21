@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/auth-utils"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import ResumeOptimizerRedesigned from "@/components/resume-optimizer-redesigned"
+import EnhancedResumeOptimizer from "@/components/enhanced-resume-optimizer"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -22,7 +22,14 @@ export default async function OptimizePage({
 
   if (!resumeId) {
     return (
-      <div className="container max-w-5xl py-8">
+      <div className="container mx-auto py-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold mb-2">Resume Optimizer</h1>
+          <p className="text-muted-foreground">
+            Upload your resume and a job description to get personalized optimization suggestions
+          </p>
+        </div>
+
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Missing Resume</AlertTitle>
@@ -53,7 +60,14 @@ export default async function OptimizePage({
 
   if (!resume) {
     return (
-      <div className="container max-w-5xl py-8">
+      <div className="container mx-auto py-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold mb-2">Resume Optimizer</h1>
+          <p className="text-muted-foreground">
+            Upload your resume and a job description to get personalized optimization suggestions
+          </p>
+        </div>
+
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Resume Not Found</AlertTitle>
@@ -91,8 +105,15 @@ export default async function OptimizePage({
   }
 
   return (
-    <div className="container max-w-7xl py-8">
-      <ResumeOptimizerRedesigned resumeData={resumeData} jobDescription={jobDescription} />
+    <div className="container mx-auto py-8">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold mb-2">Resume Optimizer</h1>
+        <p className="text-muted-foreground">
+          Upload your resume and a job description to get personalized optimization suggestions
+        </p>
+      </div>
+
+      <EnhancedResumeOptimizer resumeData={resumeData} jobDescription={jobDescription} />
     </div>
   )
 }
